@@ -1,0 +1,90 @@
+{
+  "id": "traj_demo_001",
+  "task": "Summarize a long article and extract three actionable insights",
+  "dataset": "research-bench-v0",
+  "createdAt": "2026-04-01T10:00:00.000Z",
+  "steps": [
+    {
+      "id": "s1",
+      "index": 1,
+      "type": "plan",
+      "title": "Understand task and create decomposition",
+      "input": "User asks for concise summary + 3 actions",
+      "output": "Plan: read article, identify key sections, synthesize insights",
+      "durationMs": 190,
+      "status": "ok"
+    },
+    {
+      "id": "s2",
+      "index": 2,
+      "type": "tool",
+      "title": "Fetch article content",
+      "input": "web.fetch(article_url)",
+      "output": "HTTP 200, content length 52k",
+      "toolName": "web.fetch",
+      "durationMs": 430,
+      "status": "ok"
+    },
+    {
+      "id": "s3",
+      "index": 3,
+      "type": "reason",
+      "title": "Draft summary from extracted sections",
+      "input": "Top sections from parser",
+      "output": "Draft summary misses one critical section",
+      "durationMs": 260,
+      "status": "warn"
+    },
+    {
+      "id": "s4",
+      "index": 4,
+      "type": "respond",
+      "title": "Return final answer",
+      "output": "Final answer with partial insights",
+      "durationMs": 120,
+      "status": "error",
+      "error": "Insight #3 not grounded in source"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "ann_001",
+      "target": {
+        "type": "step",
+        "trajectoryId": "traj_demo_001",
+        "stepId": "s4"
+      },
+      "aspect": "factuality.grounding",
+      "value": "weak",
+      "confidence": 0.87,
+      "evidence": [
+        {
+          "id": "ev_001",
+          "type": "step_excerpt",
+          "trajectoryId": "traj_demo_001",
+          "stepId": "s4",
+          "quote": "Insight #3 not grounded in source",
+          "note": "Claim appears without supporting excerpt"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_a"
+      },
+      "status": "draft",
+      "createdAt": "2026-04-01T10:05:00.000Z",
+      "updatedAt": "2026-04-01T10:05:00.000Z"
+    }
+  ],
+  "judgeRuns": [
+    {
+      "id": "judge_001",
+      "judgeName": "baseline-judge",
+      "judgeVersion": "0.2.0",
+      "verdict": "fail",
+      "score": 0.41,
+      "notes": "Unsupported claim in final answer",
+      "createdAt": "2026-04-01T10:06:00.000Z"
+    }
+  ]
+}
