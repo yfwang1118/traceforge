@@ -106,6 +106,54 @@ function formatBlock(block: CCMessageBlock): string {
   return toText(block.text ?? block.content);
 }
 
+function blockToToolCall(block: CCMessageBlock) {
+  return {
+    callId: block.id,
+    name: block.name ?? 'unknown_tool',
+    arguments: block.input,
+    argumentsText: toText(block.input),
+  };
+}
+
+function blockToToolResult(block: CCMessageBlock) {
+  return {
+    toolUseId: block.tool_use_id,
+    content: block.content,
+    contentText: toText(block.content),
+  };
+}
+
+function eventToToolResults(event: CCEvent, blocks: CCMessageBlock[]) {
+  const blockResults = blocks.filter((block) => block.type === 'tool_result').map(blockToToolResult);
+  if (event.toolUseResult === undefined) {
+    return blockResults;
+  }
+
+  const inferredToolUseId = blockResults[0]?.toolUseId;
+  return [
+    ...blockResults,
+    {
+      toolUseId: inferredToolUseId,
+      content: event.toolUseResult,
+      contentText: toText(event.toolUseResult),
+    },
+  ];
+}
+
+function hasToolUse(blocks: CCMessageBlock[]): boolean {
+  return blocks.some((block) => block.type === 'tool_use');
+}
+
+function hasToolResult(blocks: CCMessageBlock[]): boolean {
+  return blocks.some((block) => block.type === 'tool_result');
+}
+
+function collectToolUseIdsFromResults(blocks: CCMessageBlock[]): string[] {
+  return blocks
+    .filter((block) => block.type === 'tool_result' && typeof block.tool_use_id === 'string')
+    .map((block) => block.tool_use_id as string);
+}
+
 function summarizeTitle(role: Step['role'], blocks: CCMessageBlock[], fallback: string): string {
   const firstText = blocks
     .map((block) => block.text ?? (typeof block.content === 'string' ? block.content : ''))
@@ -154,7 +202,14 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
 
   const trajectoryId = `traj_cc_${sortedEvents[0]?.sessionId ?? sortedEvents[0]?.uuid ?? 'sample'}`;
 
-  const steps: Step[] = sortedEvents.map((event, idx) => {
+  const consumedEventIndexes = new Set<number>();
+  const steps: Step[] = [];
+
+  sortedEvents.forEach((event, idx) => {
+    if (consumedEventIndexes.has(idx)) {
+      return;
+    }
+
     const blocks = extractBlocks(event.message?.content);
     const role = normalizeRole(event);
 
@@ -171,25 +226,73 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
       .join('\n\n');
 
     const title = summarizeTitle(role, blocks, event.type ?? 'message');
-    const toolName = blocks
-      .filter((block) => block.type === 'tool_use')
-      .map((block) => block.name)
-      .filter(Boolean)
-      .join(', ');
+    const toolCalls = blocks.filter((block) => block.type === 'tool_use').map(blockToToolCall);
+    const inMessageToolResults = eventToToolResults(event, blocks);
+    const toolName = toolCalls.map((call) => call.name).join(', ');
+    const currentStepIndex = steps.length + 1;
 
-    const status = deriveStatus([title, input, output], event);
+    const canBindResultEvent = role === 'assistant' && hasToolUse(blocks) && idx < sortedEvents.length - 1;
+    let mergedToolResults = [...inMessageToolResults];
+    const mergedToolUseResultList: unknown[] = event.toolUseResult !== undefined ? [event.toolUseResult] : [];
+    let mergedOutput = output || '(no output)';
+    let mergedStatus = deriveStatus([title, input, output], event);
 
-    return {
+    if (canBindResultEvent) {
+      const toolCallIds = new Set(toolCalls.map((call) => call.callId).filter((id): id is string => Boolean(id)));
+      for (let nextIdx = idx + 1; nextIdx < sortedEvents.length; nextIdx += 1) {
+        if (consumedEventIndexes.has(nextIdx)) {
+          continue;
+        }
+
+        const nextEvent = sortedEvents[nextIdx];
+        const nextBlocks = extractBlocks(nextEvent.message?.content);
+        const nextRole = normalizeRole(nextEvent);
+        const hasResultSignal = hasToolResult(nextBlocks) || nextEvent.toolUseResult !== undefined;
+        const parentMatched = Boolean(nextEvent.parentUuid && event.uuid && nextEvent.parentUuid === event.uuid);
+        const resultIds = collectToolUseIdsFromResults(nextBlocks);
+        const idMatched = resultIds.some((id) => toolCallIds.has(id));
+        const isLikelyToolResultEvent = nextRole === 'user' && hasResultSignal && (parentMatched || idMatched || nextIdx === idx + 1);
+
+        if (!isLikelyToolResultEvent) {
+          break;
+        }
+
+        mergedToolResults = [...mergedToolResults, ...eventToToolResults(nextEvent, nextBlocks)];
+        if (nextEvent.toolUseResult !== undefined) {
+          mergedToolUseResultList.push(nextEvent.toolUseResult);
+        }
+
+        const nextOutput = nextBlocks
+          .filter((block) => block.type === 'tool_result' || block.type === 'text')
+          .map(formatBlock)
+          .filter(Boolean)
+          .join('\n\n');
+
+        if (nextOutput) {
+          mergedOutput = mergedOutput === '(no output)' ? nextOutput : `${mergedOutput}\n\n${nextOutput}`;
+        }
+
+        mergedStatus = deriveStatus([title, input, mergedOutput, toText(nextEvent.toolUseResult)], nextEvent);
+        consumedEventIndexes.add(nextIdx);
+      }
+    }
+
+    const mergedToolUseResult: unknown =
+      mergedToolUseResultList.length <= 1 ? mergedToolUseResultList[0] : mergedToolUseResultList;
+
+    steps.push({
       id: event.uuid ?? `s${idx + 1}`,
-      index: idx + 1,
-      type: toStepType(role, blocks, idx + 1, sortedEvents.length),
+      index: currentStepIndex,
+      type: toStepType(role, blocks, currentStepIndex, sortedEvents.length),
       title,
       input: input || '(empty message)',
-      output: output || '(no output)',
-      toolUseResult: event.toolUseResult,
+      output: mergedOutput,
+      toolUseResult: mergedToolUseResult,
       toolName: toolName || undefined,
-      status,
-      error: status === 'error' ? output || input : undefined,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      toolResults: mergedToolResults.length > 0 ? mergedToolResults : undefined,
+      status: mergedStatus,
+      error: mergedStatus === 'error' ? mergedOutput || input : undefined,
       role,
       timestamp: event.timestamp,
       metadata: {
@@ -200,7 +303,7 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
         inputTokens: event.message?.usage?.input_tokens,
         outputTokens: event.message?.usage?.output_tokens,
       },
-    };
+    });
   });
 
   return {
