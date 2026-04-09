@@ -15,6 +15,15 @@ export type ToolResult = {
   contentText: string;
 };
 
+export type ToolInteractionStatus = 'matched' | 'pending' | 'unmatched';
+
+export type ToolInteraction = {
+  order: number;
+  status: ToolInteractionStatus;
+  call?: ToolCall;
+  result?: ToolResult;
+};
+
 export type Step = {
   id: string;
   index: number;
@@ -31,6 +40,7 @@ export type Step = {
   timestamp?: string;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  toolInteractions?: ToolInteraction[];
   metadata?: {
     parentUuid?: string | null;
     requestId?: string;

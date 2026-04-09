@@ -123,6 +123,45 @@ function blockToToolResult(block: CCMessageBlock) {
   };
 }
 
+function buildToolInteractions(
+  toolCalls: NonNullable<Step['toolCalls']>,
+  toolResults: NonNullable<Step['toolResults']>,
+): NonNullable<Step['toolInteractions']> {
+  const unmatchedResults = [...toolResults];
+  const interactions: NonNullable<Step['toolInteractions']> = [];
+
+  toolCalls.forEach((call, index) => {
+    let matchedResultIndex = -1;
+
+    if (call.callId) {
+      matchedResultIndex = unmatchedResults.findIndex((result) => result.toolUseId === call.callId);
+    }
+
+    if (matchedResultIndex < 0 && !call.callId) {
+      matchedResultIndex = unmatchedResults.findIndex((result) => !result.toolUseId);
+    }
+
+    const result = matchedResultIndex >= 0 ? unmatchedResults.splice(matchedResultIndex, 1)[0] : undefined;
+
+    interactions.push({
+      order: index + 1,
+      status: result ? 'matched' : 'pending',
+      call,
+      result,
+    });
+  });
+
+  unmatchedResults.forEach((result, index) => {
+    interactions.push({
+      order: toolCalls.length + index + 1,
+      status: 'unmatched',
+      result,
+    });
+  });
+
+  return interactions;
+}
+
 function hasToolUse(blocks: CCMessageBlock[]): boolean {
   return blocks.some((block) => block.type === 'tool_use');
 }
@@ -136,10 +175,15 @@ function summarizeTitle(role: Step['role'], blocks: CCMessageBlock[], fallback: 
     .map((block) => block.text ?? (typeof block.content === 'string' ? block.content : ''))
     .find((text) => text && text.trim().length > 0);
 
-  const firstTool = blocks.find((block) => block.type === 'tool_use');
+  const toolUses = blocks.filter((block) => block.type === 'tool_use');
+  const firstTool = toolUses[0];
+
+  if (toolUses.length > 1) {
+    return `${role}: ${toolUses.length} tool calls`;
+  }
 
   if (firstTool) {
-    return `${role}: tool_use ${firstTool.name ?? 'unknown_tool'}`;
+    return `${role}: ${firstTool.name ?? 'unknown_tool'}`;
   }
 
   if (firstText) {
@@ -205,7 +249,7 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
     const title = summarizeTitle(role, blocks, event.type ?? 'message');
     const toolCalls = blocks.filter((block) => block.type === 'tool_use').map(blockToToolCall);
     const inMessageToolResults = blocks.filter((block) => block.type === 'tool_result').map(blockToToolResult);
-    const toolName = toolCalls.map((call) => call.name).join(', ');
+    const toolName = toolCalls.length === 1 ? toolCalls[0]?.name : undefined;
     const currentStepIndex = steps.length + 1;
 
     const canBindResultEvent = role === 'assistant' && hasToolUse(blocks) && idx < sortedEvents.length - 1;
@@ -241,6 +285,8 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
       }
     }
 
+    const toolInteractions = buildToolInteractions(toolCalls, mergedToolResults);
+
     steps.push({
       id: event.uuid ?? `s${idx + 1}`,
       index: currentStepIndex,
@@ -249,9 +295,10 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
       input: input || '(empty message)',
       output: mergedOutput,
       toolUseResult: mergedToolUseResult,
-      toolName: toolName || undefined,
+      toolName,
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       toolResults: mergedToolResults.length > 0 ? mergedToolResults : undefined,
+      toolInteractions: toolInteractions.length > 0 ? toolInteractions : undefined,
       status: mergedStatus,
       error: mergedStatus === 'error' ? mergedOutput || input : undefined,
       role,

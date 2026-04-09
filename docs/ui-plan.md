@@ -160,6 +160,9 @@ MVP 支持基础状态：
 3. **多工具调用场景**
    - 若同一 assistant 消息中包含多个 `tool_use`，step detail 必须按调用顺序渲染为列表（call #1/#2/...）。
    - 每个调用需尽量绑定对应返回；绑定失败时标记为 `pending/unmatched`，并保留原始证据。
+   - 若这些调用属于并行发起，展示层仍应以“单次调用 + 其返回”为最小单元分组，而不是将所有参数集中展示、所有结果再集中展示。
+   - 工具名必须作为卡片标题显式展示；参数名必须作为稳定字段标签展示，便于快速扫读。
+   - 研究员进入 step 后应直接看到多个工具卡片，而不是先读一大段原始 transcript。
 
 4. **绑定优先级**
    - 优先使用显式 `tool_use_id` 进行 call-result 对齐；
@@ -170,22 +173,46 @@ MVP 支持基础状态：
 
 Step Detail 在工具 step 中至少包含以下层级：
 
-1. **Tool Call Summary**
-   - 工具名、调用数量、调用状态（matched/unmatched）。
+1. **Tool Card（主视图）**
+   - 每个工具调用单独占一张卡片；
+   - 卡片头部只保留最关键的信息：
+     - 工具名
+     - 执行状态（completed / failed / waiting / orphan result）
+     - 可选的调用序号
 
 2. **Arguments View（参数视图）**
-   - 默认提供“结构化字段视图 + 原始 JSON 视图”双视角；
-   - 结构化视图按 key/value 展示顶层参数，深层对象可折叠；
-   - 参数无法解析为对象时，回退为原始文本并显示 `unparsed` 标签。
+   - 默认直接展示结构化参数字段，不再先展示工具汇总；
+   - 参数名按字段标签展示，例如 `path`、`file_path`、`pattern`；
+   - 简单标量以内联 code 方式展示，复杂对象/数组以下沉代码块展示；
+   - 对高频批量参数（如 `TodoWrite.todos`）提供专用列表视图：
+     - 展示总条目数与状态分布；
+     - 每条任务展示 `id/content/status/priority`，优先可扫读而不是原始 JSON；
+     - 原始 JSON 保留在 `Raw Arguments` 折叠区用于证据核对；
+   - 原始 JSON 作为次级信息收纳进可折叠区域。
 
 3. **Result View（结果视图）**
-   - 先展示结果摘要（类型、长度、关键字段、错误信号）；
-   - 再展示原始结果，支持代码块/JSON 的等宽滚动阅读；
-   - 对明显错误（error/exception/not found）提供高亮提示。
+   - 默认直接展示该工具调用对应的结果，不做额外汇总层；
+   - 短文本结果应以可快速扫读的文本面板展示；
+   - 长文本或结构化结果再降级为等宽滚动区；
+   - 对明显错误（error/exception/not found/does not exist）提供失败态高亮。
 
-4. **User / Assistant 问题上下文分层**
+4. **Raw Transcript（次级信息）**
+   - 原始 `tool_use` / `tool_result` 文本不作为主视图默认展开；
+   - 仅在研究员需要核对底层证据时，通过折叠区查看。
+
+5. **User / Assistant 问题上下文分层**
    - 用户问题（prompt）与 assistant 工具动作分开展示：
      - 用户意图：`User Prompt`
      - 模型行动：`Assistant Action`
      - 工具证据：`Tool Call + Tool Result`
    - 防止将工具返回误读为用户消息正文。
+
+6. **并行工具展示规范（新增）**
+   - 默认按卡片列表直接拆开渲染，不额外提供“工具汇总区”作为主入口；
+   - 同一 step 中的多个工具卡片按调用顺序排列；
+   - 每张卡片内固定为：
+     - tool header
+     - arguments
+     - result
+     - raw details（可折叠）
+   - 不要求用户理解底层并行执行机制，也能直接看懂“哪个返回属于哪个调用”。

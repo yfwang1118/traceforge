@@ -56,9 +56,14 @@ export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimeli
               <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
                 <span className="rounded bg-slate-100 px-1.5 py-0.5">role: {step.role ?? 'unknown'}</span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5">{formatTime(step.timestamp)}</span>
-                {step.toolName ? <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">tool: {step.toolName}</span> : null}
+                {step.toolCalls?.length === 1 && step.toolName ? (
+                  <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">tool: {step.toolName}</span>
+                ) : null}
                 {step.toolCalls?.length ? (
                   <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">calls: {step.toolCalls.length}</span>
+                ) : null}
+                {step.toolCalls && step.toolCalls.length > 1 ? (
+                  <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">parallel</span>
                 ) : null}
                 {step.toolResults?.length ? (
                   <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">results: {step.toolResults.length}</span>
