@@ -13,6 +13,16 @@ export type Step = {
   durationMs?: number;
   status: StepStatus;
   error?: string;
+  role?: 'system' | 'user' | 'assistant' | 'tool' | 'unknown';
+  timestamp?: string;
+  metadata?: {
+    parentUuid?: string | null;
+    requestId?: string;
+    model?: string;
+    stopReason?: string | null;
+    inputTokens?: number;
+    outputTokens?: number;
+  };
 };
 
 export type JudgeRun = {
