@@ -145,3 +145,47 @@ MVP 支持基础状态：
    - Step Detail 中新增独立的 `Tool Use Result` 区块，与 input/output 分离，避免工具返回淹没主对话文本。
    - 默认展示结构摘要（类型、顶层 key、条目数量/长度），并保留原始 JSON 视图用于追溯。
    - Timeline 对含 `toolUseResult` 的 step 增加轻量标识，帮助研究员快速定位“工具执行结果驱动”的决策节点。
+
+## 9. Step 语义与角色绑定规则（新增）
+
+针对 code-agent 事件流，展示层不应简单等同“1 条事件 = 1 个 step”，而应遵循研究可读性的 **复合 step** 抽象：
+
+1. **基础消息 step**
+   - user/system/assistant 的纯文本消息可直接作为单步展示。
+
+2. **工具执行复合 step（核心）**
+   - assistant 的 `tool_use`（调用意图 + 参数）与其后续 `tool_result` / `toolUseResult`（执行结果）应绑定为同一个 step。
+   - 时间线中该 step 作为一个节点展示，避免调用与返回割裂导致研究员误判“决策链断点”。
+
+3. **多工具调用场景**
+   - 若同一 assistant 消息中包含多个 `tool_use`，step detail 必须按调用顺序渲染为列表（call #1/#2/...）。
+   - 每个调用需尽量绑定对应返回；绑定失败时标记为 `pending/unmatched`，并保留原始证据。
+
+4. **绑定优先级**
+   - 优先使用显式 `tool_use_id` 进行 call-result 对齐；
+   - 其次使用 parentUuid + 邻近时序兜底；
+   - 无法对齐时不得静默丢弃，必须以“未匹配结果”形式可见。
+
+## 10. Tool 参数 / 返回的可读化视图规范（新增）
+
+Step Detail 在工具 step 中至少包含以下层级：
+
+1. **Tool Call Summary**
+   - 工具名、调用数量、调用状态（matched/unmatched）。
+
+2. **Arguments View（参数视图）**
+   - 默认提供“结构化字段视图 + 原始 JSON 视图”双视角；
+   - 结构化视图按 key/value 展示顶层参数，深层对象可折叠；
+   - 参数无法解析为对象时，回退为原始文本并显示 `unparsed` 标签。
+
+3. **Result View（结果视图）**
+   - 先展示结果摘要（类型、长度、关键字段、错误信号）；
+   - 再展示原始结果，支持代码块/JSON 的等宽滚动阅读；
+   - 对明显错误（error/exception/not found）提供高亮提示。
+
+4. **User / Assistant 问题上下文分层**
+   - 用户问题（prompt）与 assistant 工具动作分开展示：
+     - 用户意图：`User Prompt`
+     - 模型行动：`Assistant Action`
+     - 工具证据：`Tool Call + Tool Result`
+   - 防止将工具返回误读为用户消息正文。

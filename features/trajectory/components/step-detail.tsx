@@ -42,6 +42,9 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
   const inputText = selectedStep.input ?? 'N/A';
   const outputText = selectedStep.output ?? 'N/A';
   const toolUseResultSummary = selectedStep.toolUseResult !== undefined ? summarizeToolUseResult(selectedStep.toolUseResult) : [];
+  const toolCalls = selectedStep.toolCalls ?? [];
+  const toolResults = selectedStep.toolResults ?? [];
+  const isToolStep = selectedStep.type === 'tool' || toolCalls.length > 0 || toolResults.length > 0;
 
   return (
     <section className="h-full rounded-lg border border-slate-200 bg-white p-4">
@@ -68,7 +71,7 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
         </div>
 
         <div>
-          <p className="text-xs uppercase text-slate-500">Input</p>
+          <p className="text-xs uppercase text-slate-500">{selectedStep.role === 'user' ? 'User Prompt' : 'Input'}</p>
           <pre className="mt-1 max-h-52 overflow-auto rounded bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">
             {inputText}
           </pre>
@@ -76,12 +79,54 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
         </div>
 
         <div>
-          <p className="text-xs uppercase text-slate-500">Output</p>
+          <p className="text-xs uppercase text-slate-500">{selectedStep.role === 'assistant' ? 'Assistant Action' : 'Output'}</p>
           <pre className="mt-1 max-h-64 overflow-auto rounded bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">
             {outputText}
           </pre>
           <p className="mt-1 text-[11px] text-slate-500">{outputText.length} chars</p>
         </div>
+
+        {isToolStep ? (
+          <div className="space-y-3 rounded border border-indigo-100 bg-indigo-50/30 p-3">
+            <p className="text-xs uppercase text-indigo-700">Tool Interaction</p>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-indigo-700">
+              <span className="rounded bg-indigo-100 px-2 py-0.5">calls: {toolCalls.length}</span>
+              <span className="rounded bg-indigo-100 px-2 py-0.5">results: {toolResults.length}</span>
+            </div>
+
+            {toolCalls.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Arguments View</p>
+                {toolCalls.map((call, idx) => (
+                  <div key={`${call.callId ?? call.name}-${idx}`} className="rounded bg-white/80 p-2 text-xs text-slate-700">
+                    <p className="font-semibold text-indigo-700">
+                      Call #{idx + 1}: {call.name}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">callId: {call.callId ?? 'N/A'}</p>
+                    <pre className="mt-2 max-h-48 overflow-auto rounded bg-slate-50 p-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
+                      {call.argumentsText || '(empty arguments)'}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {toolResults.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Result View</p>
+                {toolResults.map((result, idx) => (
+                  <div key={`${result.toolUseId ?? 'result'}-${idx}`} className="rounded bg-white/80 p-2 text-xs text-slate-700">
+                    <p className="font-semibold text-indigo-700">Result #{idx + 1}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">toolUseId: {result.toolUseId ?? 'N/A'}</p>
+                    <pre className="mt-2 max-h-48 overflow-auto rounded bg-slate-50 p-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
+                      {result.contentText || '(empty result)'}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {selectedStep.toolUseResult !== undefined ? (
           <div>
