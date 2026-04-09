@@ -27,6 +27,7 @@ type CCEvent = {
     };
     content?: string | CCMessageBlock[];
   } | null;
+  toolUseResult?: unknown;
 };
 
 function isTrajectoryLike(input: unknown): input is Trajectory {
@@ -185,6 +186,7 @@ function parseCCTrajectory(events: CCEvent[]): Trajectory {
       title,
       input: input || '(empty message)',
       output: output || '(no output)',
+      toolUseResult: event.toolUseResult,
       toolName: toolName || undefined,
       status,
       error: status === 'error' ? output || input : undefined,

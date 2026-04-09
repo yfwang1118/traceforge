@@ -13,9 +13,35 @@ function formatTimestamp(timestamp?: string): string {
   return new Date(timestamp).toLocaleString('zh-CN', { hour12: false });
 }
 
+function toPrettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function summarizeToolUseResult(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return [`type: array`, `items: ${value.length}`];
+  }
+
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value as Record<string, unknown>);
+    return [`type: object`, `keys: ${keys.length}`, `fields: ${keys.slice(0, 6).join(', ') || 'N/A'}`];
+  }
+
+  if (typeof value === 'string') {
+    return [`type: string`, `length: ${value.length}`];
+  }
+
+  return [`type: ${typeof value}`];
+}
+
 export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
   const inputText = selectedStep.input ?? 'N/A';
   const outputText = selectedStep.output ?? 'N/A';
+  const toolUseResultSummary = selectedStep.toolUseResult !== undefined ? summarizeToolUseResult(selectedStep.toolUseResult) : [];
 
   return (
     <section className="h-full rounded-lg border border-slate-200 bg-white p-4">
@@ -56,6 +82,22 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
           </pre>
           <p className="mt-1 text-[11px] text-slate-500">{outputText.length} chars</p>
         </div>
+
+        {selectedStep.toolUseResult !== undefined ? (
+          <div>
+            <p className="text-xs uppercase text-violet-600">Tool Use Result</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-violet-700">
+              {toolUseResultSummary.map((item) => (
+                <span key={item} className="rounded bg-violet-50 px-2 py-0.5">
+                  {item}
+                </span>
+              ))}
+            </div>
+            <pre className="mt-2 max-h-64 overflow-auto rounded bg-violet-50/60 p-3 font-mono text-xs leading-5 text-violet-900 whitespace-pre-wrap break-words">
+              {toPrettyJson(selectedStep.toolUseResult)}
+            </pre>
+          </div>
+        ) : null}
 
         <div>
           <p className="text-xs uppercase text-slate-500">Raw Metadata</p>
