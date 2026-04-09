@@ -15,8 +15,11 @@ const statusClassMap: Record<Step['status'], string> = {
 export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimelineProps) {
   return (
     <aside className="h-full rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-slate-800">Step Timeline</h3>
-      <ul className="space-y-2">
+      <h3 className="mb-1 text-sm font-semibold text-slate-800">Step Timeline</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        {steps.length} steps
+      </p>
+      <ul className="max-h-[68vh] space-y-2 overflow-y-auto pr-1">
         {steps.map((step) => (
           <li key={step.id}>
             <button
@@ -36,7 +39,8 @@ export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimeli
                   {step.status}
                 </span>
               </div>
-              <p className="mt-1 truncate">{step.title}</p>
+              <p className="mt-1 max-h-9 overflow-hidden text-[12px] leading-4">{step.title}</p>
+              {step.toolName ? <p className="mt-1 text-[11px] text-slate-500">tool: {step.toolName}</p> : null}
             </button>
           </li>
         ))}
