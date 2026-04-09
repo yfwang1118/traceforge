@@ -140,3 +140,8 @@ MVP 支持基础状态：
 
 4. **样例数据升级**
    - `sample-data` 提供 1 条真实问题修复轨迹样例（含多轮重试、复现、修复、测试、清理、提交），用于 UI 回归与研究演示。
+
+5. **工具返回（`toolUseResult`）可读化展示**
+   - Step Detail 中新增独立的 `Tool Use Result` 区块，与 input/output 分离，避免工具返回淹没主对话文本。
+   - 默认展示结构摘要（类型、顶层 key、条目数量/长度），并保留原始 JSON 视图用于追溯。
+   - Timeline 对含 `toolUseResult` 的 step 增加轻量标识，帮助研究员快速定位“工具执行结果驱动”的决策节点。

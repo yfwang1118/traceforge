@@ -9,6 +9,7 @@ export type Step = {
   title: string;
   input?: string;
   output?: string;
+  toolUseResult?: unknown;
   toolName?: string;
   durationMs?: number;
   status: StepStatus;
