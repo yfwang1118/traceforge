@@ -12,13 +12,24 @@ const statusClassMap: Record<Step['status'], string> = {
   error: 'border-rose-200 bg-rose-50 text-rose-700',
 };
 
+function formatTime(timestamp?: string): string {
+  if (!timestamp) {
+    return '--';
+  }
+
+  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimelineProps) {
   return (
     <aside className="h-full rounded-lg border border-slate-200 bg-white p-4">
       <h3 className="mb-1 text-sm font-semibold text-slate-800">Step Timeline</h3>
-      <p className="mb-3 text-xs text-slate-500">
-        {steps.length} steps
-      </p>
+      <p className="mb-3 text-xs text-slate-500">{steps.length} steps</p>
       <ul className="max-h-[68vh] space-y-2 overflow-y-auto pr-1">
         {steps.map((step) => (
           <li key={step.id}>
@@ -31,7 +42,7 @@ export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimeli
                   : 'border-slate-100 bg-slate-50 text-slate-700 hover:border-slate-300'
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">
                   #{step.index} · {step.type}
                 </span>
@@ -39,8 +50,14 @@ export function StepTimeline({ steps, selectedStepId, onSelectStep }: StepTimeli
                   {step.status}
                 </span>
               </div>
+
               <p className="mt-1 max-h-9 overflow-hidden text-[12px] leading-4">{step.title}</p>
-              {step.toolName ? <p className="mt-1 text-[11px] text-slate-500">tool: {step.toolName}</p> : null}
+
+              <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5">role: {step.role ?? 'unknown'}</span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5">{formatTime(step.timestamp)}</span>
+                {step.toolName ? <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">tool: {step.toolName}</span> : null}
+              </div>
             </button>
           </li>
         ))}

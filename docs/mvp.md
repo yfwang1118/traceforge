@@ -100,3 +100,32 @@
   - 必要时增加检索索引（如全文/向量）用于 evidence 与相似案例回查。
 
 换言之：**现在没有数据库是刻意的 MVP 边界，不是忽略大规模需求**。
+
+## 8. Claude Code（`trajectory.cc.example.json`）格式适配约束（新增）
+
+为了支持 `sample-data/trajectory.cc.example.json` 这类“事件流数组”格式，MVP 增加以下约束：
+
+1. **导入层双格式兼容**
+   - 继续支持既有标准 `Trajectory` 对象 JSON。
+   - 新增支持 Claude Code 风格事件数组（每条记录包含 `uuid/parentUuid/type/message/timestamp` 等字段）。
+
+2. **解析策略（事件 -> Step）**
+   - 每条事件映射为一个 step，`index` 由时间顺序生成。
+   - `step.type` 由事件角色与消息内容推断：
+     - user/system -> `observe`
+     - assistant 文本消息 -> `reason` / `respond`（尾步优先归类为 `respond`）
+     - assistant tool_use -> `tool`
+   - `input/output` 保留原始文本，tool_use 输入序列化到 `input`，tool 返回摘要进入 `output`。
+
+3. **鲁棒性要求**
+   - 对 `message.content` 同时兼容 string / block 数组两种形态。
+   - 缺失字段时使用可读 fallback（例如 “(empty message)”），避免渲染报错。
+   - status 推断规则：含错误关键词或异常字段为 `error`，含告警关键词为 `warn`，其余 `ok`。
+
+4. **展示层补充信息**
+   - Timeline 增加 role、时间、tool 标签，提升长轨迹定位效率。
+   - Step Detail 增加“原始元信息”区（uuid/parentUuid/requestId/timestamp/模型与 token 使用摘要），便于 judge/debug 场景追溯。
+
+5. **不改变 annotation 抽象**
+   - 该适配仅影响 trajectory 导入与阅读体验，不改变 annotation schema。
+
