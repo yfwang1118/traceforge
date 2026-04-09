@@ -6,6 +6,9 @@ type StepDetailProps = {
 };
 
 export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
+  const inputText = selectedStep.input ?? 'N/A';
+  const outputText = selectedStep.output ?? 'N/A';
+
   return (
     <section className="h-full rounded-lg border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-slate-800">Step Detail</h3>
@@ -31,18 +34,26 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
 
         <div>
           <p className="text-xs uppercase text-slate-500">Input</p>
-          <p className="rounded bg-slate-50 p-2 text-slate-700">{selectedStep.input ?? 'N/A'}</p>
+          <pre className="mt-1 max-h-52 overflow-auto rounded bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">
+            {inputText}
+          </pre>
+          <p className="mt-1 text-[11px] text-slate-500">{inputText.length} chars</p>
         </div>
 
         <div>
           <p className="text-xs uppercase text-slate-500">Output</p>
-          <p className="rounded bg-slate-50 p-2 text-slate-700">{selectedStep.output ?? 'N/A'}</p>
+          <pre className="mt-1 max-h-64 overflow-auto rounded bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">
+            {outputText}
+          </pre>
+          <p className="mt-1 text-[11px] text-slate-500">{outputText.length} chars</p>
         </div>
 
         {selectedStep.error ? (
           <div>
             <p className="text-xs uppercase text-rose-600">Error</p>
-            <p className="rounded bg-rose-50 p-2 text-rose-700">{selectedStep.error}</p>
+            <pre className="mt-1 max-h-48 overflow-auto rounded bg-rose-50 p-3 font-mono text-xs leading-5 text-rose-700 whitespace-pre-wrap break-words">
+              {selectedStep.error}
+            </pre>
           </div>
         ) : null}
       </div>

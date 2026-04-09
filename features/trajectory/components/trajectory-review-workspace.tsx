@@ -23,14 +23,14 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
   }
 
   return (
-    <section className="grid min-h-[560px] grid-cols-12 gap-4">
-      <div className="col-span-3">
+    <section className="grid min-h-[560px] grid-cols-1 gap-4 xl:grid-cols-12">
+      <div className="xl:col-span-3">
         <StepTimeline steps={trajectory.steps} selectedStepId={selectedStep.id} onSelectStep={setSelectedStepId} />
       </div>
-      <div className="col-span-6">
+      <div className="xl:col-span-6">
         <StepDetail trajectory={trajectory} selectedStep={selectedStep} />
       </div>
-      <div className="col-span-3">
+      <div className="xl:col-span-3">
         <AnnotationPanel trajectory={trajectory} annotations={trajectory.annotations} />
       </div>
     </section>

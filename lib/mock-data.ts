@@ -1,4 +1,4 @@
-import sampleTrajectory from '@/sample-data/trajectory.sample.json';
+import sampleTrajectory from '@/sample-data/trajectory.real.example.json';
 import type { Trajectory } from '@/types';
 
 export function loadSampleTrajectory(): Trajectory {
