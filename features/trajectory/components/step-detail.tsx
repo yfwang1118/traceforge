@@ -18,17 +18,33 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
             #{selectedStep.index} · {selectedStep.type}
           </p>
           <p className="text-slate-700">{selectedStep.title}</p>
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700">status: {selectedStep.status}</span>
+            {selectedStep.durationMs ? (
+              <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700">{selectedStep.durationMs}ms</span>
+            ) : null}
+            {selectedStep.toolName ? (
+              <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-700">tool: {selectedStep.toolName}</span>
+            ) : null}
+          </div>
         </div>
 
         <div>
-          <p className="text-xs uppercase text-slate-500">Input (placeholder)</p>
+          <p className="text-xs uppercase text-slate-500">Input</p>
           <p className="rounded bg-slate-50 p-2 text-slate-700">{selectedStep.input ?? 'N/A'}</p>
         </div>
 
         <div>
-          <p className="text-xs uppercase text-slate-500">Output (placeholder)</p>
+          <p className="text-xs uppercase text-slate-500">Output</p>
           <p className="rounded bg-slate-50 p-2 text-slate-700">{selectedStep.output ?? 'N/A'}</p>
         </div>
+
+        {selectedStep.error ? (
+          <div>
+            <p className="text-xs uppercase text-rose-600">Error</p>
+            <p className="rounded bg-rose-50 p-2 text-rose-700">{selectedStep.error}</p>
+          </div>
+        ) : null}
       </div>
     </section>
   );

@@ -1,49 +1,135 @@
 {
-  "id": "traj_demo_001",
-  "task": "Summarize a long article and extract three actionable insights",
-  "dataset": "research-bench-v0",
-  "createdAt": "2026-04-01T10:00:00.000Z",
+  "id": "traj_openhands_django_001",
+  "task": "修复 Django URL resolver 在 include() + app_name 嵌套场景下的反向解析回归，并补充测试",
+  "dataset": "oss-code-agent-bench",
+  "createdAt": "2026-04-05T09:30:00.000Z",
   "steps": [
     {
       "id": "s1",
       "index": 1,
       "type": "plan",
-      "title": "Understand task and create decomposition",
-      "input": "User asks for concise summary + 3 actions",
-      "output": "Plan: read article, identify key sections, synthesize insights",
-      "durationMs": 190,
+      "title": "解析 issue 描述并制定修复计划",
+      "input": "Issue: reverse() fails for nested include namespace after recent refactor",
+      "output": "Plan: reproduce -> locate regression commit -> patch resolver -> add tests -> run targeted suite",
+      "durationMs": 240,
       "status": "ok"
     },
     {
       "id": "s2",
       "index": 2,
       "type": "tool",
-      "title": "Fetch article content",
-      "input": "web.fetch(article_url)",
-      "output": "HTTP 200, content length 52k",
-      "toolName": "web.fetch",
-      "durationMs": 430,
+      "title": "检出仓库并切换到问题分支",
+      "input": "git clone django/django && git checkout regression-branch",
+      "output": "Repository prepared, branch synced",
+      "toolName": "bash.exec",
+      "durationMs": 810,
       "status": "ok"
     },
     {
       "id": "s3",
       "index": 3,
-      "type": "reason",
-      "title": "Draft summary from extracted sections",
-      "input": "Top sections from parser",
-      "output": "Draft summary misses one critical section",
-      "durationMs": 260,
-      "status": "warn"
+      "type": "tool",
+      "title": "运行最小复现测试",
+      "input": "python -m pytest tests/urlpatterns/test_resolvers.py -k nested_namespace_reverse",
+      "output": "1 failed: NoReverseMatch for namespaced include",
+      "toolName": "pytest",
+      "durationMs": 2920,
+      "status": "error",
+      "error": "NoReverseMatch: 'blog:detail' not found"
     },
     {
       "id": "s4",
       "index": 4,
+      "type": "observe",
+      "title": "检查 URLResolver 与 get_ns_resolver 行为",
+      "input": "Inspect django/urls/resolvers.py",
+      "output": "Observed namespace dict overwritten when app_name inherited twice",
+      "durationMs": 330,
+      "status": "warn"
+    },
+    {
+      "id": "s5",
+      "index": 5,
+      "type": "reason",
+      "title": "提出假设：命名空间合并策略导致父级丢失",
+      "input": "Compare current merge logic with previous stable release",
+      "output": "Hypothesis: kwargs merge order changed in refactor and discards parent namespace path",
+      "durationMs": 410,
+      "status": "ok"
+    },
+    {
+      "id": "s6",
+      "index": 6,
+      "type": "tool",
+      "title": "尝试首版补丁",
+      "input": "edit django/urls/resolvers.py to preserve inherited namespaces",
+      "output": "Patch applied; added fallback to parent namespace",
+      "toolName": "editor.apply_patch",
+      "durationMs": 1180,
+      "status": "ok"
+    },
+    {
+      "id": "s7",
+      "index": 7,
+      "type": "tool",
+      "title": "回归测试（首轮）",
+      "input": "python -m pytest tests/urlpatterns/test_resolvers.py",
+      "output": "2 failed, 38 passed. New failure in default namespace resolution",
+      "toolName": "pytest",
+      "durationMs": 3180,
+      "status": "warn"
+    },
+    {
+      "id": "s8",
+      "index": 8,
+      "type": "reason",
+      "title": "分析副作用并调整策略",
+      "input": "Failing tests indicate fallback branch too broad",
+      "output": "Refine approach: only preserve parent namespace when explicit app_name exists",
+      "durationMs": 500,
+      "status": "ok"
+    },
+    {
+      "id": "s9",
+      "index": 9,
+      "type": "tool",
+      "title": "提交二版补丁并补测试",
+      "input": "modify merge guard + add test_nested_include_app_name_regression",
+      "output": "Updated resolver guard and added regression test file",
+      "toolName": "editor.apply_patch",
+      "durationMs": 1540,
+      "status": "ok"
+    },
+    {
+      "id": "s10",
+      "index": 10,
+      "type": "tool",
+      "title": "定向测试通过",
+      "input": "python -m pytest tests/urlpatterns/test_resolvers.py -k nested",
+      "output": "6 passed, 0 failed",
+      "toolName": "pytest",
+      "durationMs": 3010,
+      "status": "ok"
+    },
+    {
+      "id": "s11",
+      "index": 11,
+      "type": "tool",
+      "title": "运行相关模块测试",
+      "input": "python -m pytest tests/urlpatterns tests/check_framework",
+      "output": "78 passed, 1 xfailed",
+      "toolName": "pytest",
+      "durationMs": 8140,
+      "status": "ok"
+    },
+    {
+      "id": "s12",
+      "index": 12,
       "type": "respond",
-      "title": "Return final answer",
-      "output": "Final answer with partial insights",
-      "durationMs": 120,
-      "status": "error",
-      "error": "Insight #3 not grounded in source"
+      "title": "输出修复总结与风险说明",
+      "output": "Root cause: namespace merge order regression. Added guard + regression tests. Residual risk: deep triple-nested namespace not covered.",
+      "durationMs": 190,
+      "status": "warn"
     }
   ],
   "annotations": [
@@ -51,40 +137,94 @@
       "id": "ann_001",
       "target": {
         "type": "step",
-        "trajectoryId": "traj_demo_001",
-        "stepId": "s4"
+        "trajectoryId": "traj_openhands_django_001",
+        "stepId": "s3"
       },
-      "aspect": "factuality.grounding",
-      "value": "weak",
-      "confidence": 0.87,
+      "aspect": "tool.usefulness",
+      "value": "effective",
+      "confidence": 0.91,
       "evidence": [
         {
           "id": "ev_001",
           "type": "step_excerpt",
-          "trajectoryId": "traj_demo_001",
-          "stepId": "s4",
-          "quote": "Insight #3 not grounded in source",
-          "note": "Claim appears without supporting excerpt"
+          "trajectoryId": "traj_openhands_django_001",
+          "stepId": "s3",
+          "quote": "1 failed: NoReverseMatch for namespaced include",
+          "note": "快速构建了可复现失败，锚定真实故障入口"
         }
       ],
       "provenance": {
         "source": "human",
         "authorId": "researcher_a"
       },
+      "status": "confirmed",
+      "createdAt": "2026-04-05T09:35:00.000Z",
+      "updatedAt": "2026-04-05T09:40:00.000Z"
+    },
+    {
+      "id": "ann_002",
+      "target": {
+        "type": "step",
+        "trajectoryId": "traj_openhands_django_001",
+        "stepId": "s7"
+      },
+      "aspect": "planning.quality",
+      "value": "medium",
+      "confidence": 0.74,
+      "evidence": [
+        {
+          "id": "ev_002",
+          "type": "step_excerpt",
+          "trajectoryId": "traj_openhands_django_001",
+          "stepId": "s7",
+          "quote": "New failure in default namespace resolution",
+          "note": "首版修复缺少副作用边界检查"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_b"
+      },
       "status": "draft",
-      "createdAt": "2026-04-01T10:05:00.000Z",
-      "updatedAt": "2026-04-01T10:05:00.000Z"
+      "createdAt": "2026-04-05T09:43:00.000Z",
+      "updatedAt": "2026-04-05T09:43:00.000Z"
+    },
+    {
+      "id": "ann_003",
+      "target": {
+        "type": "trajectory",
+        "trajectoryId": "traj_openhands_django_001"
+      },
+      "aspect": "outcome.quality",
+      "value": "good",
+      "confidence": 0.79,
+      "evidence": [
+        {
+          "id": "ev_003",
+          "type": "judge_output",
+          "trajectoryId": "traj_openhands_django_001",
+          "quote": "Regression fixed with dedicated test coverage",
+          "note": "judge 结果与人类复核结论一致"
+        }
+      ],
+      "provenance": {
+        "source": "llm_judge",
+        "authorId": "judge_v2"
+      },
+      "status": "draft",
+      "createdAt": "2026-04-05T09:55:00.000Z",
+      "updatedAt": "2026-04-05T09:55:00.000Z"
     }
   ],
   "judgeRuns": [
     {
       "id": "judge_001",
-      "judgeName": "baseline-judge",
-      "judgeVersion": "0.2.0",
-      "verdict": "fail",
-      "score": 0.41,
-      "notes": "Unsupported claim in final answer",
-      "createdAt": "2026-04-01T10:06:00.000Z"
+      "judgeName": "trajectory-consistency-judge",
+      "judgeVersion": "0.4.1",
+      "verdict": "pass",
+      "score": 0.82,
+      "notes": "Repair loop is coherent; failure-to-fix transition is evidenced by tests",
+      "createdAt": "2026-04-05T09:56:00.000Z"
     }
   ]
 }
