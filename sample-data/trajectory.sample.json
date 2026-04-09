@@ -1,0 +1,329 @@
+{
+  "id": "traj_openhands_swe_style_001",
+  "task": "Fix failing unit tests by correcting path normalization in a CLI utility",
+  "dataset": "swe-bench-style",
+  "createdAt": "2026-03-18T09:20:00.000Z",
+  "source": {
+    "name": "OpenHands / SWE-bench style public trajectory",
+    "url": "https://github.com/All-Hands-AI/OpenHands",
+    "note": "This sample is a compact, schema-aligned adaptation for local UI debugging."
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "index": 1,
+      "type": "plan",
+      "title": "Read issue and define debugging plan",
+      "observation": "Issue reports failing tests around relative path handling in src/cli/path_utils.py.",
+      "action": "Plan: reproduce tests, isolate failing branch, patch normalization, rerun focused tests.",
+      "metadata": {
+        "durationMs": 210,
+        "tokenIn": 512,
+        "tokenOut": 186,
+        "model": "gpt-research-mini",
+        "tags": ["planning", "bugfix"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s2",
+      "index": 2,
+      "type": "tool",
+      "title": "Inspect repository tree",
+      "observation": "Need to confirm test and source locations.",
+      "action": "Run tree and locate tests for path normalization.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "rg --files | head -n 80"
+        }
+      },
+      "toolResult": {
+        "ok": true,
+        "summary": "Located src/cli/path_utils.py and tests/test_path_utils.py"
+      },
+      "metadata": {
+        "durationMs": 330,
+        "command": "rg --files | head -n 80",
+        "filesTouched": ["src/cli/path_utils.py", "tests/test_path_utils.py"],
+        "tags": ["repo-inspect"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s3",
+      "index": 3,
+      "type": "tool",
+      "title": "Run full test suite",
+      "observation": "Need baseline to confirm failure reproduction.",
+      "action": "Execute pytest.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "pytest -q"
+        }
+      },
+      "toolResult": {
+        "ok": false,
+        "summary": "3 failing tests in tests/test_path_utils.py"
+      },
+      "metadata": {
+        "durationMs": 1240,
+        "command": "pytest -q",
+        "testSummary": "3 failed, 127 passed",
+        "tags": ["reproduce", "tests"]
+      },
+      "status": "warn",
+      "error": "test_normalize_parent_segments, test_windows_backslash, test_trailing_dot"
+    },
+    {
+      "id": "s4",
+      "index": 4,
+      "type": "observe",
+      "title": "Read failing test details",
+      "observation": "normalize_path('../a/./b') returns '../a/b' but expected 'a/b'.",
+      "action": "Extract assertion traces and expected behavior.",
+      "metadata": {
+        "durationMs": 410,
+        "tags": ["failure-analysis"],
+        "note": "Failures indicate parent segment collapse logic is too permissive."
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s5",
+      "index": 5,
+      "type": "tool",
+      "title": "Open normalization function",
+      "observation": "Need inspect algorithm around split/join path segments.",
+      "action": "Print target function with line numbers.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "sed -n '1,220p' src/cli/path_utils.py"
+        }
+      },
+      "toolResult": {
+        "ok": true,
+        "summary": "Found normalize_path uses naive replace and stack pop behavior"
+      },
+      "metadata": {
+        "durationMs": 390,
+        "command": "sed -n '1,220p' src/cli/path_utils.py",
+        "filesTouched": ["src/cli/path_utils.py"],
+        "tags": ["code-reading"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s6",
+      "index": 6,
+      "type": "reason",
+      "title": "Hypothesis: incorrect handling of leading '..'",
+      "observation": "Current code pops stack only when stack non-empty, but still preserves leading '..' incorrectly.",
+      "action": "Change logic to discard unresolved leading '..' for repo-root normalization mode.",
+      "metadata": {
+        "durationMs": 240,
+        "tags": ["hypothesis", "root-cause"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s7",
+      "index": 7,
+      "type": "tool",
+      "title": "Apply patch to normalization algorithm",
+      "observation": "Implement guarded segment filtering and consistent separator normalization.",
+      "action": "Edit src/cli/path_utils.py and add comments.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "apply_patch <<'PATCH' ... PATCH"
+        }
+      },
+      "toolResult": {
+        "ok": true,
+        "summary": "Patched normalize_path and helper _sanitize_segments"
+      },
+      "metadata": {
+        "durationMs": 670,
+        "filesTouched": ["src/cli/path_utils.py"],
+        "tags": ["patch"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s8",
+      "index": 8,
+      "type": "tool",
+      "title": "Run focused failing tests",
+      "observation": "Need quick check before full suite.",
+      "action": "Run specific test module.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "pytest tests/test_path_utils.py -q"
+        }
+      },
+      "toolResult": {
+        "ok": false,
+        "summary": "2 tests pass, 1 still failing (windows_backslash)"
+      },
+      "metadata": {
+        "durationMs": 920,
+        "command": "pytest tests/test_path_utils.py -q",
+        "testSummary": "1 failed, 11 passed",
+        "tags": ["verify", "partial-fix"]
+      },
+      "status": "warn",
+      "error": "test_windows_backslash"
+    },
+    {
+      "id": "s9",
+      "index": 9,
+      "type": "reason",
+      "title": "Analyze windows path edge case",
+      "observation": "Backslash replacement happens after segment split, leaving mixed separators.",
+      "action": "Move replacement before split and deduplicate separators.",
+      "metadata": {
+        "durationMs": 190,
+        "tags": ["edge-case", "windows"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s10",
+      "index": 10,
+      "type": "tool",
+      "title": "Apply second patch and rerun focused tests",
+      "observation": "Need confirm windows case fixed.",
+      "action": "Patch then execute tests/test_path_utils.py.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "pytest tests/test_path_utils.py -q"
+        }
+      },
+      "toolResult": {
+        "ok": true,
+        "summary": "All tests in test_path_utils.py passed"
+      },
+      "metadata": {
+        "durationMs": 980,
+        "filesTouched": ["src/cli/path_utils.py"],
+        "testSummary": "12 passed",
+        "tags": ["verify", "focused-tests"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s11",
+      "index": 11,
+      "type": "tool",
+      "title": "Run full regression suite",
+      "observation": "Need ensure no side effects.",
+      "action": "Execute full pytest run.",
+      "toolCall": {
+        "name": "bash",
+        "args": {
+          "cmd": "pytest -q"
+        }
+      },
+      "toolResult": {
+        "ok": true,
+        "summary": "All tests pass"
+      },
+      "metadata": {
+        "durationMs": 1510,
+        "command": "pytest -q",
+        "testSummary": "130 passed",
+        "tags": ["regression"]
+      },
+      "status": "ok"
+    },
+    {
+      "id": "s12",
+      "index": 12,
+      "type": "respond",
+      "title": "Prepare patch summary for reviewer",
+      "observation": "Fix validated with focused and full tests.",
+      "action": "Summarize root cause, changes, and test evidence.",
+      "metadata": {
+        "durationMs": 210,
+        "filesTouched": ["src/cli/path_utils.py", "tests/test_path_utils.py"],
+        "tags": ["handoff"]
+      },
+      "status": "ok"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "ann_001",
+      "target": {
+        "type": "step",
+        "trajectoryId": "traj_openhands_swe_style_001",
+        "stepId": "s8"
+      },
+      "aspect": "failure_mode",
+      "value": "partial_fix_missing_windows_case",
+      "confidence": 0.83,
+      "evidence": [
+        {
+          "id": "ev_001",
+          "type": "step_excerpt",
+          "trajectoryId": "traj_openhands_swe_style_001",
+          "stepId": "s8",
+          "quote": "1 still failing (windows_backslash)",
+          "note": "Focused tests reveal unresolved platform-specific behavior"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_a"
+      },
+      "status": "confirmed",
+      "createdAt": "2026-03-18T09:34:00.000Z",
+      "updatedAt": "2026-03-18T09:35:00.000Z"
+    },
+    {
+      "id": "ann_002",
+      "target": {
+        "type": "span",
+        "trajectoryId": "traj_openhands_swe_style_001",
+        "startStepId": "s6",
+        "endStepId": "s10"
+      },
+      "aspect": "decision_criticality",
+      "value": 5,
+      "confidence": 0.76,
+      "evidence": [
+        {
+          "id": "ev_002",
+          "type": "span_excerpt",
+          "trajectoryId": "traj_openhands_swe_style_001",
+          "startStepId": "s6",
+          "endStepId": "s10",
+          "note": "Core debug/fix loop that determined final success"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_b"
+      },
+      "status": "draft",
+      "createdAt": "2026-03-18T09:36:00.000Z",
+      "updatedAt": "2026-03-18T09:36:00.000Z"
+    }
+  ],
+  "judgeRuns": [
+    {
+      "id": "judge_001",
+      "judgeName": "trajectory-consistency-judge",
+      "judgeVersion": "0.3.1",
+      "verdict": "pass",
+      "score": 0.79,
+      "notes": "Reasoning, patch, and test evidence are internally consistent.",
+      "createdAt": "2026-03-18T09:40:00.000Z"
+    }
+  ]
+}
