@@ -2,6 +2,19 @@ import type { Annotation } from './annotation';
 
 export type StepStatus = 'ok' | 'warn' | 'error';
 
+export type ToolCall = {
+  callId?: string;
+  name: string;
+  arguments: unknown;
+  argumentsText: string;
+};
+
+export type ToolResult = {
+  toolUseId?: string;
+  content: unknown;
+  contentText: string;
+};
+
 export type Step = {
   id: string;
   index: number;
@@ -16,6 +29,8 @@ export type Step = {
   error?: string;
   role?: 'system' | 'user' | 'assistant' | 'tool' | 'unknown';
   timestamp?: string;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
   metadata?: {
     parentUuid?: string | null;
     requestId?: string;
