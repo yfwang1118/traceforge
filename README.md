@@ -11,7 +11,7 @@ traceforge 是一个面向 **agent trajectory 审查、标注、分析和 LLM ju
 
 当前仓库处于 **文档优先 + MVP 技术骨架阶段**：
 - 已落地 Next.js + TypeScript + Tailwind 前端骨架；
-- 已提供 mock data 与 trajectory detail 三栏页面占位；
+- 已提供 mock data 与 trajectory detail 页面（轨迹浏览优先，标注按需打开）；
 - 当前 MVP 明确不接数据库，先用 sample/mock JSON 验证研究闭环。
 
 ## 快速开始
@@ -37,6 +37,13 @@ npm run build
 npm run start
 ```
 
+### 4) 代码检查
+
+```bash
+npm run lint
+npx tsc --noEmit
+```
+
 ## 目录结构
 
 ```text
@@ -58,10 +65,10 @@ traceforge/
 - 核心类型：`Trajectory`、`Step`、`Annotation`、`EvidenceSpan`、`AspectSpec`、`JudgeRun`。
 - sample trajectory JSON + mock loader。
 - 基础 app shell。
-- trajectory detail 页面骨架：
-  - 左侧 step timeline 占位
-  - 中间 step detail 占位
-  - 右侧 annotation panel 占位
+- trajectory detail 研究视图：
+  - 左侧 Step Timeline（状态、角色、工具调用信息、step 标注计数）
+  - 中间 Step Detail（工具卡片、参数/结果可读化、原始元信息）
+  - 标注抽屉（默认收起，按需打开，支持 step/trajectory/all 范围切换）
 
 ## 项目原则（摘要）
 

@@ -4,6 +4,7 @@ import type { Step, ToolInteraction, ToolResult, Trajectory } from '@/types';
 type StepDetailProps = {
   trajectory: Trajectory;
   selectedStep: Step;
+  onOpenAnnotation?: () => void;
 };
 
 type InteractionPresentation = {
@@ -412,7 +413,7 @@ function ToolInteractionCard({ interaction }: { interaction: ToolInteraction }) 
   );
 }
 
-export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
+export function StepDetail({ trajectory, selectedStep, onOpenAnnotation }: StepDetailProps) {
   const inputText = selectedStep.input ?? 'N/A';
   const outputText = selectedStep.output ?? 'N/A';
   const toolCalls = selectedStep.toolCalls ?? [];
@@ -430,10 +431,23 @@ export function StepDetail({ trajectory, selectedStep }: StepDetailProps) {
 
       <div className="mt-4 space-y-4 text-sm">
         <div>
-          <p className="text-xs uppercase text-slate-500">Step</p>
-          <p className="font-medium text-slate-900">
-            #{selectedStep.index} · {selectedStep.type}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase text-slate-500">Step</p>
+              <p className="font-medium text-slate-900">
+                #{selectedStep.index} · {selectedStep.type}
+              </p>
+            </div>
+            {onOpenAnnotation ? (
+              <button
+                type="button"
+                onClick={onOpenAnnotation}
+                className="rounded border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-slate-400"
+              >
+                标注此步骤
+              </button>
+            ) : null}
+          </div>
           <p className="text-slate-700">{selectedStep.title}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700">status: {selectedStep.status}</span>
