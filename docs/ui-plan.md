@@ -41,6 +41,23 @@
 3. 抽屉内支持 target 快速切换（step / trajectory / all），减少页面跳转。
 4. 关闭后保留当前 step 位置与阅读上下文，不重排主区域。
 
+### 2.3 顶部汇总条（新增）
+
+在 trajectory detail 顶部增加轻量的 annotation summary strip，用于建立全局心智模型，而不是额外引入独立标注页面。
+
+summary strip 至少包含：
+
+1. trajectory / span / step 标注数量摘要；
+2. trajectory 级整体判断；
+3. 当前 step 所属阶段（若存在 span）及其简短理由；
+4. span 阶段 chips，点击后可直接定位并聚焦对应区段。
+
+原则：
+
+- 顶部汇总条只承担“概览 + 快速跳转”职责；
+- 完整细节仍然放在 timeline、detail 与 annotation drawer 中；
+- 这样可以把标注织进原有骨架，而不是让研究员在“阅读轨迹”和“查看标注”之间切到另一个工作区。
+
 ## 3. Step Timeline 设计
 
 ## 3.1 每个 step 的最小信息
@@ -55,11 +72,30 @@
 1. 点击 step：中栏跳转并更新右栏 target 为该 step。
 2. Shift 多选/拖选区间：创建 span target。
 3. 悬停预览：快速查看 step 摘要，减少来回切换。
+4. 对已有 span 标注的区段，支持折叠/展开对应 step。
 
 MVP 当前最小可用交互（必须落地）：
 - 支持单选 step（click）并在 Timeline 中高亮当前项；
 - Step Detail 随选中 step 实时刷新；
 - 对错误/告警 step 提供显式视觉状态，帮助研究员快速回放关键决策链路。
+
+### 3.2.1 Span 折叠（新增）
+
+保持 `step` 是主阅读粒度，但允许用 `span` 做轻量结构化压缩：
+
+1. 默认仍按 step 展开，避免丢失局部判断链。
+2. 当某段 steps 已有 span 标注时，可将这段收起为一个阶段节点。
+3. 折叠态节点需显示：
+   - 阶段名称
+   - 起止 step
+   - 覆盖的 step 数
+   - span / step 标注数
+4. 展开态下：
+   - 恢复原始 step 列表；
+   - span 名称退化为一条细 bar，而不是继续占据完整标题行；
+   - 鼠标悬停在细 bar 上时，显示该 span 的阶段名与理由摘要。
+
+这个交互的目标不是把 timeline 改造成“阶段视图”，而是在长轨迹中提供一层不打断 step 阅读的压缩能力。
 
 ## 3.3 可视化提示
 

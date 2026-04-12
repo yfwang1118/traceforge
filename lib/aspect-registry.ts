@@ -2,6 +2,15 @@ import type { AspectSpec } from '@/types';
 
 export const aspectRegistry: AspectSpec[] = [
   {
+    key: 'workflow.phase',
+    name: 'Workflow Phase',
+    description: 'Named phase segment that groups a contiguous span of steps into a research-readable stage.',
+    allowedTargetTypes: ['span'],
+    valueType: 'text',
+    version: '1.0.0',
+    active: true,
+  },
+  {
     key: 'correctness.task_understanding',
     name: 'Task Understanding',
     description: 'Whether the step/trajectory correctly captures user intent and constraints.',

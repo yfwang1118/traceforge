@@ -59,6 +59,7 @@ export type Annotation = {
   target: TargetRef;
   aspect: string;
   value: AnnotationValue;
+  rationale?: string;
   confidence?: number;
   evidence?: EvidenceSpan[];
   provenance: {

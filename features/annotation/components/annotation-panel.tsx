@@ -1,16 +1,18 @@
+import { annotationValueLabel, type TimelineSpanGroup } from '@/lib/annotation-presentation';
 import type { Annotation, Step, Trajectory } from '@/types';
 
 type AnnotationPanelProps = {
   trajectory: Trajectory;
   annotations: Annotation[];
   selectedStep: Step;
+  currentSpanGroup: TimelineSpanGroup | null;
   isOpen: boolean;
   scope: AnnotationPanelScope;
   onScopeChange: (scope: AnnotationPanelScope) => void;
   onClose: () => void;
 };
 
-export type AnnotationPanelScope = 'step' | 'trajectory' | 'all';
+export type AnnotationPanelScope = 'step' | 'span' | 'trajectory' | 'all';
 
 function targetLabel(annotation: Annotation): string {
   switch (annotation.target.type) {
@@ -25,22 +27,11 @@ function targetLabel(annotation: Annotation): string {
   }
 }
 
-function toDisplayValue(value: Annotation['value']): string {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '[complex value]';
-  }
-}
-
 export function AnnotationPanel({
   trajectory,
   annotations,
   selectedStep,
+  currentSpanGroup,
   isOpen,
   scope,
   onScopeChange,
@@ -49,15 +40,30 @@ export function AnnotationPanel({
   const stepAnnotations = annotations.filter(
     (annotation) => annotation.target.type === 'step' && annotation.target.stepId === selectedStep.id,
   );
+  const spanAnnotations = currentSpanGroup
+    ? annotations.filter(
+        (annotation) =>
+          annotation.target.type === 'span' &&
+          annotation.target.startStepId === currentSpanGroup.startStepId &&
+          annotation.target.endStepId === currentSpanGroup.endStepId,
+      )
+    : [];
   const trajectoryAnnotations = annotations.filter(
     (annotation) => annotation.target.type === 'trajectory' && annotation.target.trajectoryId === trajectory.id,
   );
 
   const visibleAnnotations =
-    scope === 'step' ? stepAnnotations : scope === 'trajectory' ? trajectoryAnnotations : annotations;
+    scope === 'step'
+      ? stepAnnotations
+      : scope === 'span'
+        ? spanAnnotations
+        : scope === 'trajectory'
+          ? trajectoryAnnotations
+          : annotations;
 
   const scopeOptions: { key: AnnotationPanelScope; label: string }[] = [
     { key: 'step', label: `Current Step (${stepAnnotations.length})` },
+    { key: 'span', label: `Current Span (${spanAnnotations.length})` },
     { key: 'trajectory', label: `Trajectory (${trajectoryAnnotations.length})` },
     { key: 'all', label: `All (${annotations.length})` },
   ];
@@ -92,7 +98,14 @@ export function AnnotationPanel({
 
         <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           <p>Trajectory: {trajectory.id}</p>
-          <p className="mt-1">Current step: #{selectedStep.index} · {selectedStep.id}</p>
+          <p className="mt-1">
+            Current step: #{selectedStep.index} · {selectedStep.id}
+          </p>
+          {currentSpanGroup ? (
+            <p className="mt-1">
+              Current span: #{currentSpanGroup.startStepIndex}-{currentSpanGroup.endStepIndex} · {currentSpanGroup.label}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -115,7 +128,7 @@ export function AnnotationPanel({
         <div className="mt-4 max-h-[calc(100vh-210px)] space-y-2 overflow-y-auto pr-1">
           {visibleAnnotations.length === 0 ? (
             <p className="rounded bg-slate-50 p-3 text-xs text-slate-600">
-              当前范围暂无标注。可以继续浏览轨迹，定位到关键 step 后再打开抽屉记录。
+              当前范围暂无标注。可以继续浏览轨迹，定位到关键 step 或阶段后再打开抽屉记录。
             </p>
           ) : (
             visibleAnnotations.map((annotation) => (
@@ -125,7 +138,10 @@ export function AnnotationPanel({
                   <span className="rounded bg-slate-200 px-2 py-0.5 text-[11px] text-slate-600">{annotation.status}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">{targetLabel(annotation)}</p>
-                <p className="mt-1 text-xs text-slate-700">value: {toDisplayValue(annotation.value)}</p>
+                <p className="mt-1 text-xs font-medium text-slate-800">label: {annotationValueLabel(annotation.value)}</p>
+                {annotation.rationale ? (
+                  <p className="mt-2 text-xs leading-5 text-slate-600">reason: {annotation.rationale}</p>
+                ) : null}
                 {annotation.confidence !== undefined ? (
                   <p className="mt-1 text-[11px] text-slate-500">confidence: {annotation.confidence.toFixed(2)}</p>
                 ) : null}

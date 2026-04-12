@@ -23,6 +23,7 @@ type Annotation = {
   target: TargetRef;
   aspect: AspectKey;
   value: Value;
+  rationale?: string;
   confidence?: number;
   evidence?: EvidenceRef[];
   provenance: Provenance;
@@ -95,7 +96,13 @@ type TargetRef =
 - 研究语义：标注者对当前 value 判断可信度。
 - 非模型概率，不用于替代统计置信区间。
 
-### 4.5 `evidence`（可选但推荐）
+### 4.5 `rationale`（强推荐）
+
+- 用自然语言说明为什么给出当前判断。
+- 对 step/span/trajectory 三类 target，都应允许附带简短理由。
+- UI 展示中，`value` 更适合作为标签，`rationale` 更适合作为研究复盘时的可读解释。
+
+### 4.6 `evidence`（可选但推荐）
 
 引用支持该判断的证据对象列表（可跨 target）。
 
@@ -107,7 +114,7 @@ type EvidenceRef = {
 };
 ```
 
-### 4.6 `provenance`
+### 4.7 `provenance`
 
 记录标注来源与方式：
 
@@ -120,7 +127,7 @@ type Provenance = {
 };
 ```
 
-### 4.7 `status`
+### 4.8 `status`
 
 建议枚举：
 - `draft`：草稿

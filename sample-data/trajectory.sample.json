@@ -141,6 +141,7 @@
       },
       "aspect": "tool.usefulness",
       "value": "effective",
+      "rationale": "最小复现脚本直接稳定触发 KeyError，让根因从模糊怀疑变成可验证事实，是这条轨迹最关键的定位 step。",
       "confidence": 0.94,
       "evidence": [
         {
@@ -168,6 +169,7 @@
       },
       "aspect": "outcome.quality",
       "value": "good",
+      "rationale": "整条轨迹完成了定位、修复、验证与清理闭环，且回归测试覆盖了缺失 label 的场景，因此整体完成度较高。",
       "confidence": 0.81,
       "evidence": [
         {
@@ -185,6 +187,99 @@
       "status": "draft",
       "createdAt": "2026-04-09T00:12:00.000Z",
       "updatedAt": "2026-04-09T00:12:00.000Z"
+    },
+    {
+      "id": "ann_003",
+      "target": {
+        "type": "span",
+        "trajectoryId": "traj_junit_label_keyerror_001",
+        "startStepId": "s2",
+        "endStepId": "s3"
+      },
+      "aspect": "workflow.phase",
+      "value": "问题理解与定位",
+      "rationale": "从用户报错描述进入仓库检索，目标是把异常从 issue 文本映射到具体代码位置，属于典型的理解与定位阶段。",
+      "confidence": 0.86,
+      "evidence": [
+        {
+          "id": "ev_003",
+          "type": "span_excerpt",
+          "trajectoryId": "traj_junit_label_keyerror_001",
+          "startStepId": "s2",
+          "endStepId": "s3",
+          "quote": "提交 issue -> 检索 reporting.py",
+          "note": "从问题描述快速切到代码定位。"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_traceforge"
+      },
+      "status": "confirmed",
+      "createdAt": "2026-04-09T00:08:00.000Z",
+      "updatedAt": "2026-04-09T00:08:00.000Z"
+    },
+    {
+      "id": "ann_004",
+      "target": {
+        "type": "span",
+        "trajectoryId": "traj_junit_label_keyerror_001",
+        "startStepId": "s4",
+        "endStepId": "s6"
+      },
+      "aspect": "workflow.phase",
+      "value": "复现与修复",
+      "rationale": "先用最小脚本复现异常，再形成修复策略并直接改实现，这一段是最核心的故障定位与修复阶段。",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "id": "ev_004",
+          "type": "span_excerpt",
+          "trajectoryId": "traj_junit_label_keyerror_001",
+          "startStepId": "s4",
+          "endStepId": "s6",
+          "quote": "KeyError -> config.get('x')",
+          "note": "从复现到补丁落地。"
+        }
+      ],
+      "provenance": {
+        "source": "human",
+        "authorId": "researcher_traceforge"
+      },
+      "status": "confirmed",
+      "createdAt": "2026-04-09T00:09:00.000Z",
+      "updatedAt": "2026-04-09T00:09:00.000Z"
+    },
+    {
+      "id": "ann_005",
+      "target": {
+        "type": "span",
+        "trajectoryId": "traj_junit_label_keyerror_001",
+        "startStepId": "s7",
+        "endStepId": "s9"
+      },
+      "aspect": "workflow.phase",
+      "value": "验证与清理",
+      "rationale": "修复后先重跑复现脚本，再跑回归测试，最后清理临时文件，这一段是完整的验证闭环。",
+      "confidence": 0.88,
+      "evidence": [
+        {
+          "id": "ev_005",
+          "type": "judge_output",
+          "trajectoryId": "traj_junit_label_keyerror_001",
+          "stepId": "s8",
+          "quote": "7 passed in 0.18s",
+          "note": "验证阶段的核心证据。"
+        }
+      ],
+      "provenance": {
+        "source": "llm_judge",
+        "authorId": "judge_v2",
+        "runId": "judge_001"
+      },
+      "status": "draft",
+      "createdAt": "2026-04-09T00:12:30.000Z",
+      "updatedAt": "2026-04-09T00:12:30.000Z"
     }
   ],
   "judgeRuns": [

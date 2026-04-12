@@ -66,9 +66,10 @@ traceforge/
 - sample trajectory JSON + mock loader。
 - 基础 app shell。
 - trajectory detail 研究视图：
-  - 左侧 Step Timeline（状态、角色、工具调用信息、step 标注计数）
+  - 顶部 Annotation Summary（整体判断、当前阶段、span 快速跳转）
+  - 左侧 Step Timeline（状态、角色、工具调用信息、step 标注计数、span 折叠/展开）
   - 中间 Step Detail（工具卡片、参数/结果可读化、原始元信息）
-  - 标注抽屉（默认收起，按需打开，支持 step/trajectory/all 范围切换）
+  - 标注抽屉（默认收起，按需打开，支持 step/span/trajectory/all 范围切换）
 
 ## 项目原则（摘要）
 
