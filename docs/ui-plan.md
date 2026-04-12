@@ -188,35 +188,36 @@ MVP 支持基础状态：
    - 三栏布局在桌面端保持稳定；在窄屏自动降级为单列，优先保证“先定位后阅读”的流畅性。
 
 4. **样例数据升级**
-   - `sample-data` 提供 1 条真实问题修复轨迹样例（含多轮重试、复现、修复、测试、清理、提交），用于 UI 回归与研究演示。
+   - `sample-data` 至少保留 1 条真实 code-agent 对话流样例，默认演示可直接使用 `trajectory.cc.example.json` 这类原始 event log。
+   - 当前默认对话流样例采用 raw event 模式：1 条 event = 1 个 step，并配套 mock annotations 进入 Timeline / Detail / Annotation UI。
+   - 结构化问题修复样例可继续保留为对照输入，用于 UI 回归与研究演示。
 
 5. **工具返回（`toolUseResult`）可读化展示**
    - Step Detail 中新增独立的 `Tool Use Result` 区块，与 input/output 分离，避免工具返回淹没主对话文本。
    - 默认展示结构摘要（类型、顶层 key、条目数量/长度），并保留原始 JSON 视图用于追溯。
    - Timeline 对含 `toolUseResult` 的 step 增加轻量标识，帮助研究员快速定位“工具执行结果驱动”的决策节点。
 
-## 9. Step 语义与角色绑定规则（新增）
+## 9. Step 语义与角色绑定规则（当前默认样例）
 
-针对 code-agent 事件流，展示层不应简单等同“1 条事件 = 1 个 step”，而应遵循研究可读性的 **复合 step** 抽象：
+针对当前默认的 Claude Code event log 样例，展示层采用 **raw event 视图**：
 
-1. **基础消息 step**
-   - user/system/assistant 的纯文本消息可直接作为单步展示。
+1. **一条 event 对应一个 step**
+   - 时间顺序必须与原始 JSON 完全一致，不做跨 event 合并。
+   - step id 应稳定映射回原始 event 序号，便于研究员回溯证据。
 
-2. **工具执行复合 step（核心）**
-   - assistant 的 `tool_use`（调用意图 + 参数）与其后续 `tool_result` / `toolUseResult`（执行结果）应绑定为同一个 step。
-   - 时间线中该 step 作为一个节点展示，避免调用与返回割裂导致研究员误判“决策链断点”。
+2. **消息与工具结果分开保留**
+   - assistant 的 `tool_use` event 单独展示；
+   - 后续 `tool_result` / `toolUseResult` event 也单独展示；
+   - 不在默认视图中把它们压成复合 step，避免研究员丢失底层时序。
 
 3. **多工具调用场景**
-   - 若同一 assistant 消息中包含多个 `tool_use`，step detail 必须按调用顺序渲染为列表（call #1/#2/...）。
-   - 每个调用需尽量绑定对应返回；绑定失败时标记为 `pending/unmatched`，并保留原始证据。
-   - 若这些调用属于并行发起，展示层仍应以“单次调用 + 其返回”为最小单元分组，而不是将所有参数集中展示、所有结果再集中展示。
-   - 工具名必须作为卡片标题显式展示；参数名必须作为稳定字段标签展示，便于快速扫读。
-   - 研究员进入 step 后应直接看到多个工具卡片，而不是先读一大段原始 transcript。
+   - 若同一 assistant event 中包含多个 `tool_use`，该 event 仍只占一个 step；
+   - Step Detail 中按调用顺序渲染工具列表；
+   - 对后续独立返回的 `tool_result` event，保留原始返回 event，不静默折叠。
 
-4. **绑定优先级**
-   - 优先使用显式 `tool_use_id` 进行 call-result 对齐；
-   - 其次使用 parentUuid + 邻近时序兜底；
-   - 无法对齐时不得静默丢弃，必须以“未匹配结果”形式可见。
+4. **原始证据优先**
+   - 标题、状态和 tool 标签允许做轻量摘要；
+   - 但详情面板必须能看到原始 event 文本、原始参数和原始结果。
 
 ## 10. Tool 参数 / 返回的可读化视图规范（新增）
 

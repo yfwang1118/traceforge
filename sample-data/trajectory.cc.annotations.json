@@ -1,0 +1,151 @@
+[
+  {
+    "id": "cc_ann_001",
+    "target": {
+      "type": "trajectory",
+      "trajectoryId": "traj_cc_prompt_real_llm_001"
+    },
+    "aspect": "outcome.quality",
+    "value": "partial",
+    "rationale": "这条原始 event 轨迹覆盖了需求输入、环境配置、API 接线、UI 改动与最后的类型检查发起，但在日志末尾没有看到 type-check 的返回结果，所以完成度仍然是 partial。",
+    "confidence": 0.82,
+    "evidence": [
+      {
+        "id": "cc_ev_001",
+        "type": "judge_output",
+        "trajectoryId": "traj_cc_prompt_real_llm_001",
+        "quote": "npm run type-check",
+        "note": "验证动作已发起，但没有出现结果 event。"
+      }
+    ],
+    "provenance": {
+      "source": "human",
+      "authorId": "researcher_traceforge"
+    },
+    "status": "confirmed",
+    "createdAt": "2026-04-12T00:00:00.000Z",
+    "updatedAt": "2026-04-12T00:00:00.000Z"
+  },
+  {
+    "id": "cc_ann_002",
+    "target": {
+      "type": "span",
+      "trajectoryId": "traj_cc_prompt_real_llm_001",
+      "startStepId": "cc_e1",
+      "endStepId": "cc_e16"
+    },
+    "aspect": "workflow.phase",
+    "value": "需求建模与仓库定位",
+    "rationale": "从用户提交完整需求开始，到 assistant 通过 TodoWrite、LS、Read、Glob 和 Bash 逐步定位项目目录、依赖状态和环境文件缺口，这一段保持了原始 event 粒度下的问题建模与仓库定位过程。",
+    "confidence": 0.9,
+    "evidence": [
+      {
+        "id": "cc_ev_002",
+        "type": "span_excerpt",
+        "trajectoryId": "traj_cc_prompt_real_llm_001",
+        "startStepId": "cc_e1",
+        "endStepId": "cc_e16",
+        "quote": "user requirement -> TodoWrite -> LS / Read / Glob -> env.local missing",
+        "note": "这段 span 完整覆盖需求理解到代码库定位。"
+      }
+    ],
+    "provenance": {
+      "source": "human",
+      "authorId": "researcher_traceforge"
+    },
+    "status": "confirmed",
+    "createdAt": "2026-04-12T00:01:00.000Z",
+    "updatedAt": "2026-04-12T00:01:00.000Z"
+  },
+  {
+    "id": "cc_ann_003",
+    "target": {
+      "type": "span",
+      "trajectoryId": "traj_cc_prompt_real_llm_001",
+      "startStepId": "cc_e17",
+      "endStepId": "cc_e36"
+    },
+    "aspect": "workflow.phase",
+    "value": "环境配置与实现核查",
+    "rationale": "这一段从 assistant 决定先补齐 env 模板开始，经过 .env/.env.local 的创建、用户催促继续分析、以及回到 chat route / PromptResponseBlock / page 的连续读取与中断，完整覆盖了进入正式接线前的环境配置与实现现状核查阶段。",
+    "confidence": 0.89,
+    "evidence": [
+      {
+        "id": "cc_ev_003",
+        "type": "span_excerpt",
+        "trajectoryId": "traj_cc_prompt_real_llm_001",
+        "startStepId": "cc_e17",
+        "endStepId": "cc_e36",
+        "quote": "create .env/.env.local -> continue analysis -> read chat route / PromptResponseBlock",
+        "note": "这段 span 填补了定位阶段与正式接线阶段之间的完整中间过程。"
+      }
+    ],
+    "provenance": {
+      "source": "human",
+      "authorId": "researcher_traceforge"
+    },
+    "status": "confirmed",
+    "createdAt": "2026-04-12T00:02:00.000Z",
+    "updatedAt": "2026-04-12T00:02:00.000Z"
+  },
+  {
+    "id": "cc_ann_004",
+    "target": {
+      "type": "span",
+      "trajectoryId": "traj_cc_prompt_real_llm_001",
+      "startStepId": "cc_e37",
+      "endStepId": "cc_e59"
+    },
+    "aspect": "workflow.phase",
+    "value": "接线实现与验证",
+    "rationale": "从第一次 Edit chat route 开始，到创建 title route、修改 PromptResponseBlock、补状态机以及发起 type-check，这一长段 event 是真实接线与验证的主干过程。",
+    "confidence": 0.91,
+    "evidence": [
+      {
+        "id": "cc_ev_004",
+        "type": "span_excerpt",
+        "trajectoryId": "traj_cc_prompt_real_llm_001",
+        "startStepId": "cc_e37",
+        "endStepId": "cc_e59",
+        "quote": "Edit chat route -> Write title route -> Edit PromptResponseBlock -> Bash type-check",
+        "note": "接线和验证动作集中出现在这段 event span。"
+      }
+    ],
+    "provenance": {
+      "source": "human",
+      "authorId": "researcher_traceforge"
+    },
+    "status": "confirmed",
+    "createdAt": "2026-04-12T00:03:00.000Z",
+    "updatedAt": "2026-04-12T00:03:00.000Z"
+  },
+  {
+    "id": "cc_ann_005",
+    "target": {
+      "type": "step",
+      "trajectoryId": "traj_cc_prompt_real_llm_001",
+      "stepId": "cc_e38"
+    },
+    "aspect": "tool.usefulness",
+    "value": "mixed",
+    "rationale": "这个 event 是一次失败的 Edit 返回，明确表明 assistant 已经开始改 chat route，但当前补丁没有产生实际变更。它是一个很典型的“方向接近正确，但工具操作没有命中”的原始失败 event。",
+    "confidence": 0.88,
+    "evidence": [
+      {
+        "id": "cc_ev_005",
+        "type": "step_excerpt",
+        "trajectoryId": "traj_cc_prompt_real_llm_001",
+        "stepId": "cc_e38",
+        "quote": "No changes to make: old_string and new_string are exactly the same.",
+        "note": "原始 event 直接显示这次 Edit 没有生效。"
+      }
+    ],
+    "provenance": {
+      "source": "human",
+      "authorId": "researcher_traceforge"
+    },
+    "status": "confirmed",
+    "createdAt": "2026-04-12T00:04:00.000Z",
+    "updatedAt": "2026-04-12T00:04:00.000Z"
+  }
+]

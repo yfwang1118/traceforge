@@ -1,5 +1,9 @@
 import type { Annotation, AnnotationValue, Step, Trajectory } from '@/types';
 
+type SpanAnnotation = Annotation & {
+  target: Extract<Annotation['target'], { type: 'span' }>;
+};
+
 export type TimelineSpanGroup = {
   id: string;
   annotation: Annotation;
@@ -151,6 +155,10 @@ function getStepIndexMap(steps: Step[]): Record<string, number> {
   }, {});
 }
 
+function isSpanAnnotation(annotation: Annotation): annotation is SpanAnnotation {
+  return annotation.target.type === 'span';
+}
+
 export function buildTimelineSpanGroups(
   trajectory: Trajectory,
   annotationCountByStepId: Record<string, number>,
@@ -159,13 +167,13 @@ export function buildTimelineSpanGroups(
   const stepIndexMap = getStepIndexMap(trajectory.steps);
 
   return trajectory.annotations
-    .filter((annotation): annotation is Annotation & { target: Extract<Annotation['target'], { type: 'span' }> } => annotation.target.type === 'span')
-    .map((annotation) => {
+    .filter(isSpanAnnotation)
+    .reduce<TimelineSpanGroup[]>((groups, annotation) => {
       const startStepIndex = stepIndexMap[annotation.target.startStepId];
       const endStepIndex = stepIndexMap[annotation.target.endStepId];
 
       if (startStepIndex === undefined || endStepIndex === undefined) {
-        return null;
+        return groups;
       }
 
       const stepIds = trajectory.steps
@@ -174,7 +182,7 @@ export function buildTimelineSpanGroups(
 
       const stepAnnotationCount = stepIds.reduce((total, stepId) => total + (annotationCountByStepId[stepId] ?? 0), 0);
 
-      return {
+      groups.push({
         id: annotation.id,
         annotation,
         label: annotationValueLabel(annotation.value),
@@ -187,9 +195,10 @@ export function buildTimelineSpanGroups(
         stepCount: stepIds.length,
         stepAnnotationCount,
         containsSelectedStep: stepIds.includes(selectedStepId),
-      };
-    })
-    .filter((group): group is TimelineSpanGroup => Boolean(group))
+      });
+
+      return groups;
+    }, [])
     .sort((left, right) => left.startStepIndex - right.startStepIndex);
 }
 

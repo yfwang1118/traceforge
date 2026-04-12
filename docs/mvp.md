@@ -29,8 +29,9 @@
 - 支持从本地或预置目录加载样例 JSON。
 - 导入后可立即在 trajectory detail 中浏览与标注。
 - 导入格式应可校验并给出可读错误信息（字段缺失、类型不匹配、step 引用非法）。
-- 当前默认展示路径使用结构化样例 `sample-data/trajectory.sample.json`。
-- `sample-data/trajectory.cc.example.json` 作为后续事件流导入的参考输入保留，但不作为当前默认 loader 的主路径。
+- 当前默认展示路径使用 `sample-data/trajectory.cc.example.json`，并按原始 event 顺序逐条映射为统一 `Trajectory` 抽象中的 step。
+- 与该样例配套的 mock annotations 存放在 `sample-data/trajectory.cc.annotations.json`，用于驱动 step / span / trajectory 三层演示。
+- `sample-data/trajectory.sample.json` 继续保留为结构化旧样例，用于对照和回归，不再作为默认 loader 的主路径。
 
 ## 2.4 少量 aspect 先行
 
@@ -103,20 +104,28 @@
 
 换言之：**现在没有数据库是刻意的 MVP 边界，不是忽略大规模需求**。
 
-## 8. 参考输入样例（非默认路径）
+## 8. 参考输入样例
 
-当前仓库保留了额外参考样例，用于后续导入器设计与 UI 回归：
+当前仓库保留了两类样例，用于默认演示、导入器设计与 UI 回归：
 
 1. `sample-data/trajectory.cc.example.json`
    - Claude Code 风格事件流样例；
-   - 当前不作为默认 loader 的输入；
-   - 后续若重新接入事件流导入，应单独实现和验证解析层。
+   - 当前默认演示即基于这份原始 event log；
+   - 当前展示层对它采用 raw event 模式：1 条 event = 1 个 step。
 
-2. `sample-data/trajectory.sample.json`
-   - 当前默认结构化样例；
-   - 用于驱动 trajectory / span / step 三层标注演示与 UI 调整。
+2. `sample-data/trajectory.cc.annotations.json`
+   - 与上述事件流样例配套的 mock annotations；
+   - 提供 trajectory / span / step 三层标注演示；
+   - 用于验证阶段分段、关键 event judgment 与整体结论展示。
+
+3. `sample-data/trajectory.sample.json`
+   - 旧的结构化样例；
+   - 现作为备用结构化对照样例保留；
+   - 继续覆盖问题修复/回归验证场景，便于和 event-log 适配结果对照。
 
 原则：
 
-- 不因为保留参考样例就夸大当前默认实现能力；
-- 任何重新引入事件流导入的工作，都应重新在 docs 中明确“已实现”与“计划中”的边界。
+- 默认演示可以基于真实 event log，且当前优先保留原始 event 粒度；
+- 即便展示 raw event，UI 仍然必须落在统一抽象模型上；
+- 不因为保留原始 event log 就夸大“通用事件流导入”已经完成；
+- 若后续要支持通用事件流导入，仍需单独在 docs 中明确“已实现”与“计划中”的边界。

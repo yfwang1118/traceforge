@@ -1,6 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { getSpanTone, type TimelineSpanGroup } from '@/lib/annotation-presentation';
 import type { Step } from '@/types';
+
+export type TimelineScrollRequest = {
+  targetId: string;
+  nonce: number;
+};
 
 type StepTimelineProps = {
   steps: Step[];
@@ -11,12 +16,47 @@ type StepTimelineProps = {
   collapsedSpanIds?: string[];
   onToggleSpanCollapse?: (spanId: string) => void;
   onFocusSpan?: (spanId: string) => void;
+  scrollRequest?: TimelineScrollRequest | null;
 };
 
-const statusClassMap: Record<Step['status'], string> = {
-  ok: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  warn: 'border-amber-200 bg-amber-50 text-amber-700',
-  error: 'border-rose-200 bg-rose-50 text-rose-700',
+type StatusPresentation = {
+  pill: string;
+  dot: string;
+  label: string;
+};
+
+const statusClassMap: Record<Step['status'], StatusPresentation> = {
+  ok: {
+    pill: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    dot: 'bg-emerald-500',
+    label: 'ok',
+  },
+  warn: {
+    pill: 'border-amber-200 bg-amber-50 text-amber-700',
+    dot: 'bg-amber-500',
+    label: 'warn',
+  },
+  error: {
+    pill: 'border-rose-200 bg-rose-50 text-rose-700',
+    dot: 'bg-rose-500',
+    label: 'error',
+  },
+};
+
+const stepTypeClassMap: Record<Step['type'], string> = {
+  observe: 'bg-sky-100 text-sky-700',
+  reason: 'bg-amber-100 text-amber-700',
+  tool: 'bg-violet-100 text-violet-700',
+  plan: 'bg-cyan-100 text-cyan-700',
+  respond: 'bg-emerald-100 text-emerald-700',
+};
+
+const roleClassMap: Record<NonNullable<Step['role']>, string> = {
+  system: 'border-amber-200 bg-amber-50 text-amber-700',
+  user: 'border-slate-200 bg-slate-50 text-slate-700',
+  assistant: 'border-sky-200 bg-sky-50 text-sky-700',
+  tool: 'border-violet-200 bg-violet-50 text-violet-700',
+  unknown: 'border-slate-200 bg-slate-50 text-slate-500',
 };
 
 function formatTime(timestamp?: string): string {
@@ -32,6 +72,37 @@ function formatTime(timestamp?: string): string {
   });
 }
 
+function formatStepIndex(index: number): string {
+  return index.toString().padStart(2, '0');
+}
+
+function formatStepRange(start: number, end: number): string {
+  return `${formatStepIndex(start)}-${formatStepIndex(end)}`;
+}
+
+function MetaChip({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <span className={`rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[10px] font-medium text-slate-600 ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function StepOrdinalBadge({ index, selected }: { index: number; selected: boolean }) {
+  return (
+    <div
+      className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl border transition ${
+        selected
+          ? 'border-slate-900 bg-slate-900 text-white shadow-[0_24px_50px_-28px_rgba(15,23,42,0.85)]'
+          : 'border-slate-200 bg-slate-50 text-slate-700'
+      }`}
+    >
+      <span className="text-[8px] font-semibold uppercase tracking-[0.26em] opacity-70">step</span>
+      <span className="mt-1 text-sm font-semibold tracking-[0.08em]">{formatStepIndex(index)}</span>
+    </div>
+  );
+}
+
 function renderStepRow(
   step: Step,
   selectedStepId: string,
@@ -39,47 +110,69 @@ function renderStepRow(
   annotationCountByStepId: Record<string, number>,
 ) {
   const annotationCount = annotationCountByStepId[step.id] ?? 0;
+  const isSelected = selectedStepId === step.id;
+  const statusTone = statusClassMap[step.status];
+  const roleTone = roleClassMap[step.role ?? 'unknown'];
 
   return (
     <button
       type="button"
       onClick={() => onSelectStep(step.id)}
-      className={`w-full rounded border p-2 text-left text-xs transition ${
-        selectedStepId === step.id
-          ? 'border-slate-900 bg-slate-100 text-slate-900 shadow-sm'
-          : 'border-slate-100 bg-slate-50 text-slate-700 hover:border-slate-300'
+      className={`group relative w-full overflow-hidden rounded-[24px] border px-3.5 py-3.5 text-left transition duration-200 ${
+        isSelected
+          ? 'border-slate-900/10 bg-white shadow-[0_28px_50px_-30px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5'
+          : 'border-white/80 bg-white/75 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)] hover:border-slate-200 hover:bg-white'
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium">
-          #{step.index} · {step.type}
-        </span>
-        <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${statusClassMap[step.status]}`}>{step.status}</span>
-      </div>
+      <div
+        className={`absolute inset-x-4 top-0 h-px transition ${
+          isSelected ? 'bg-gradient-to-r from-amber-300 via-sky-300 to-teal-300' : 'bg-transparent group-hover:bg-slate-200'
+        }`}
+      />
 
-      <p className="mt-1 max-h-9 overflow-hidden text-[12px] leading-4">{step.title}</p>
+      <div className="flex items-start gap-3">
+        <StepOrdinalBadge index={step.index} selected={isSelected} />
 
-      <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
-        <span className="rounded bg-slate-100 px-1.5 py-0.5">role: {step.role ?? 'unknown'}</span>
-        <span className="rounded bg-slate-100 px-1.5 py-0.5">{formatTime(step.timestamp)}</span>
-        {step.toolCalls?.length === 1 && step.toolName ? (
-          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">tool: {step.toolName}</span>
-        ) : null}
-        {step.toolCalls?.length ? (
-          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">calls: {step.toolCalls.length}</span>
-        ) : null}
-        {step.toolCalls && step.toolCalls.length > 1 ? (
-          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700">parallel</span>
-        ) : null}
-        {step.toolResults?.length ? (
-          <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">results: {step.toolResults.length}</span>
-        ) : null}
-        {step.toolUseResult !== undefined ? (
-          <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">toolUseResult</span>
-        ) : null}
-        {annotationCount > 0 ? (
-          <span className="rounded bg-teal-50 px-1.5 py-0.5 text-teal-700">annotations: {annotationCount}</span>
-        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${stepTypeClassMap[step.type]}`}>
+                  {step.type}
+                </span>
+                {annotationCount > 0 ? <MetaChip className="border-teal-100 bg-teal-50 text-teal-700">annotations {annotationCount}</MetaChip> : null}
+              </div>
+              <p className="mt-2 max-h-12 overflow-hidden text-[13px] font-medium leading-6 text-slate-800">{step.title}</p>
+            </div>
+
+            <span
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusTone.pill}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
+              {statusTone.label}
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <MetaChip className={roleTone}>role {step.role ?? 'unknown'}</MetaChip>
+            <MetaChip>{formatTime(step.timestamp)}</MetaChip>
+            {step.toolCalls?.length === 1 && step.toolName ? (
+              <MetaChip className="border-violet-200 bg-violet-50 text-violet-700">tool {step.toolName}</MetaChip>
+            ) : null}
+            {step.toolCalls?.length ? (
+              <MetaChip className="border-indigo-200 bg-indigo-50 text-indigo-700">calls {step.toolCalls.length}</MetaChip>
+            ) : null}
+            {step.toolCalls && step.toolCalls.length > 1 ? (
+              <MetaChip className="border-indigo-200 bg-indigo-50 text-indigo-700">parallel</MetaChip>
+            ) : null}
+            {step.toolResults?.length ? (
+              <MetaChip className="border-violet-200 bg-violet-50 text-violet-700">results {step.toolResults.length}</MetaChip>
+            ) : null}
+            {step.toolUseResult !== undefined ? (
+              <MetaChip className="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700">tool payload</MetaChip>
+            ) : null}
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -90,13 +183,14 @@ function renderCollapsedSpanGroup(
   isCollapsed: boolean,
   onToggleSpanCollapse?: (spanId: string) => void,
   onFocusSpan?: (spanId: string) => void,
+  itemRef?: (node: HTMLLIElement | null) => void,
 ) {
   const tone = getSpanTone(group.label);
 
   return (
-    <li key={group.id}>
+    <li key={group.id} ref={itemRef}>
       <div
-        className={`rounded-xl border p-3 transition ${
+        className={`overflow-hidden rounded-[24px] border p-4 shadow-[0_20px_40px_-34px_rgba(15,23,42,0.35)] transition ${
           group.containsSelectedStep ? tone.cardActive : `${tone.card} hover:border-slate-300`
         }`}
       >
@@ -104,7 +198,7 @@ function renderCollapsedSpanGroup(
           <button
             type="button"
             onClick={() => onToggleSpanCollapse?.(group.id)}
-            className="mt-0.5 shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+            className="mt-0.5 shrink-0 rounded-full border border-white/90 bg-white/90 px-3 py-1 text-[11px] font-medium text-slate-600 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.5)] hover:bg-white"
             aria-label={isCollapsed ? `Expand span ${group.label}` : `Collapse span ${group.label}`}
           >
             {isCollapsed ? '展开' : '收起'}
@@ -112,17 +206,17 @@ function renderCollapsedSpanGroup(
 
           <button type="button" onClick={() => onFocusSpan?.(group.id)} className="flex-1 text-left" title={group.label}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${tone.chip}`}>
+              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${tone.chip}`}>
                 {group.label}
               </span>
-              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-600">
-                step #{group.startStepIndex}-{group.endStepIndex}
+              <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-slate-600">
+                steps {formatStepRange(group.startStepIndex, group.endStepIndex)}
               </span>
-              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-600">{group.stepCount} steps</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] ${tone.chipSoft}`}>step ann {group.stepAnnotationCount}</span>
+              <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-slate-600">{group.stepCount} steps</span>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${tone.chipSoft}`}>annotations {group.stepAnnotationCount}</span>
             </div>
             {group.rationale ? (
-              <p className="mt-2 max-h-10 overflow-hidden text-[11px] leading-5 text-slate-600">{group.rationale}</p>
+              <p className="mt-3 max-h-11 overflow-hidden text-[12px] leading-5 text-slate-600">{group.rationale}</p>
             ) : null}
           </button>
         </div>
@@ -138,50 +232,50 @@ function renderExpandedSpanGroup(
   onSelectStep: (stepId: string) => void,
   annotationCountByStepId: Record<string, number>,
   onToggleSpanCollapse?: (spanId: string) => void,
+  itemRef?: (node: HTMLLIElement | null) => void,
+  stepItemRef?: (stepId: string) => (node: HTMLLIElement | null) => void,
 ) {
   const tone = getSpanTone(group.label);
 
   return (
-    <li key={group.id} className="relative pl-4">
+    <li key={group.id} ref={itemRef} className="relative pl-5">
       <button
         type="button"
         onClick={() => onToggleSpanCollapse?.(group.id)}
         title={group.label}
         aria-label={`Collapse span ${group.label}`}
-        className={`peer absolute left-0 top-0 bottom-0 w-1.5 rounded-full transition ${
-          group.containsSelectedStep ? tone.bar : `${tone.bar} ${tone.barHover}`
-        }`}
+        className={`peer absolute bottom-0 left-0 top-0 w-2 rounded-full transition ${group.containsSelectedStep ? tone.bar : `${tone.bar} ${tone.barHover}`}`}
       >
         <span className="sr-only">{group.label}</span>
       </button>
 
-      <div className="pointer-events-none absolute left-4 top-1 z-10 rounded-full border border-slate-200 bg-white/95 px-2 py-1 text-[10px] font-medium text-slate-700 opacity-0 shadow-sm transition duration-150 peer-hover:opacity-100 peer-focus-visible:opacity-100">
+      <div className="pointer-events-none absolute left-5 top-2 z-10 rounded-full border border-white/90 bg-white/95 px-2.5 py-1 text-[10px] font-medium text-slate-700 opacity-0 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.5)] transition duration-150 peer-hover:opacity-100 peer-focus-visible:opacity-100">
         {group.label}
       </div>
 
-      <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2 py-1 text-[10px] ${tone.header}`}>
+      <div className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[22px] border px-3 py-2.5 text-[10px] shadow-[0_16px_28px_-24px_rgba(15,23,42,0.35)] ${tone.header}`}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full border px-2 py-0.5 font-medium ${tone.chip}`}>{group.label}</span>
-          <span className={`rounded-full bg-white/80 px-2 py-0.5 ${tone.headerMuted}`}>
-            step #{group.startStepIndex}-{group.endStepIndex}
+          <span className={`rounded-full border px-2.5 py-1 font-semibold uppercase tracking-[0.16em] ${tone.chip}`}>{group.label}</span>
+          <span className={`rounded-full bg-white/85 px-2.5 py-1 font-medium ${tone.headerMuted}`}>
+            steps {formatStepRange(group.startStepIndex, group.endStepIndex)}
           </span>
+          <span className={`rounded-full bg-white/85 px-2.5 py-1 font-medium ${tone.headerMuted}`}>{group.stepCount} steps</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full bg-white/80 px-2 py-0.5 ${tone.headerMuted}`}>{group.stepCount} steps</span>
-          <button
-            type="button"
-            onClick={() => onToggleSpanCollapse?.(group.id)}
-            className="rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-white"
-            aria-label={`Collapse span ${group.label}`}
-          >
-            收起
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onToggleSpanCollapse?.(group.id)}
+          className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-[11px] font-medium text-slate-700 hover:bg-white"
+          aria-label={`Collapse span ${group.label}`}
+        >
+          收起阶段
+        </button>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {steps.map((step) => (
-          <li key={step.id}>{renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}</li>
+          <li key={step.id} ref={stepItemRef?.(step.id)}>
+            {renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}
+          </li>
         ))}
       </ul>
     </li>
@@ -197,9 +291,44 @@ export function StepTimeline({
   collapsedSpanIds = [],
   onToggleSpanCollapse,
   onFocusSpan,
+  scrollRequest,
 }: StepTimelineProps) {
   const sortedSpanGroups = [...spanGroups].sort((left, right) => left.startStepIndex - right.startStepIndex);
   const collapsedSpanIdSet = new Set(collapsedSpanIds);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const itemRefMap = useRef<Record<string, HTMLLIElement | null>>({});
+  const annotatedStepCount = Object.values(annotationCountByStepId).filter((count) => count > 0).length;
+
+  const setItemRef = (itemId: string) => (node: HTMLLIElement | null) => {
+    itemRefMap.current[itemId] = node;
+  };
+
+  useEffect(() => {
+    if (!scrollRequest) {
+      return;
+    }
+
+    const targetNode = itemRefMap.current[scrollRequest.targetId];
+    const listNode = listRef.current;
+
+    if (!targetNode || !listNode) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const listRect = listNode.getBoundingClientRect();
+      const targetRect = targetNode.getBoundingClientRect();
+      const targetTop = listNode.scrollTop + (targetRect.top - listRect.top);
+      const paddingTop = 8;
+
+      listNode.scrollTo({
+        top: Math.max(targetTop - paddingTop, 0),
+        behavior: 'smooth',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [scrollRequest]);
 
   const items: ReactNode[] = [];
   let nextStepIndex = 1;
@@ -208,7 +337,11 @@ export function StepTimeline({
     const ungroupedSteps = steps.filter((step) => step.index >= nextStepIndex && step.index < group.startStepIndex);
 
     ungroupedSteps.forEach((step) => {
-      items.push(<li key={step.id}>{renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}</li>);
+      items.push(
+        <li key={step.id} ref={setItemRef(step.id)}>
+          {renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}
+        </li>,
+      );
     });
 
     const groupSteps = steps.filter((step) => step.index >= group.startStepIndex && step.index <= group.endStepIndex);
@@ -216,7 +349,7 @@ export function StepTimeline({
 
     items.push(
       isCollapsed
-        ? renderCollapsedSpanGroup(group, isCollapsed, onToggleSpanCollapse, onFocusSpan)
+        ? renderCollapsedSpanGroup(group, isCollapsed, onToggleSpanCollapse, onFocusSpan, setItemRef(group.id))
         : renderExpandedSpanGroup(
             group,
             groupSteps,
@@ -224,6 +357,8 @@ export function StepTimeline({
             onSelectStep,
             annotationCountByStepId,
             onToggleSpanCollapse,
+            setItemRef(group.id),
+            setItemRef,
           ),
     );
 
@@ -233,17 +368,42 @@ export function StepTimeline({
   const trailingSteps = steps.filter((step) => step.index >= nextStepIndex);
 
   trailingSteps.forEach((step) => {
-    items.push(<li key={step.id}>{renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}</li>);
+    items.push(
+      <li key={step.id} ref={setItemRef(step.id)}>
+        {renderStepRow(step, selectedStepId, onSelectStep, annotationCountByStepId)}
+      </li>,
+    );
   });
 
   return (
-    <aside className="h-full rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="mb-1 text-sm font-semibold text-slate-800">Step Timeline</h3>
-      <p className="mb-3 text-xs text-slate-500">
-        {steps.length} steps
-        {spanGroups.length > 0 ? ` · ${spanGroups.length} spans` : ''}
-      </p>
-      <ul className="max-h-[68vh] space-y-2 overflow-y-auto pr-1">{items}</ul>
+    <aside className="h-full overflow-hidden rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-[0_30px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold tracking-tight text-slate-900">Step Timeline</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">沿时间顺序浏览 event，快速定位关键决策、工具往返与异常步骤。</p>
+        </div>
+
+        <div className="grid min-w-[220px] flex-1 gap-2 sm:max-w-[360px] sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Steps</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{steps.length}</p>
+          </div>
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Spans</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{spanGroups.length}</p>
+          </div>
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Annotated</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{annotatedStepCount}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[24px] bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.9))] p-2 ring-1 ring-white/80">
+        <ul ref={listRef} className="max-h-[72vh] space-y-2.5 overflow-y-auto pr-1">
+          {items}
+        </ul>
+      </div>
     </aside>
   );
 }

@@ -5,7 +5,7 @@ import { AnnotationSummaryStrip } from '@/features/annotation/components/annotat
 import { AnnotationPanel } from '@/features/annotation/components/annotation-panel';
 import type { AnnotationPanelScope } from '@/features/annotation/components/annotation-panel';
 import { StepDetail } from '@/features/trajectory/components/step-detail';
-import { StepTimeline } from '@/features/trajectory/components/step-timeline';
+import { StepTimeline, type TimelineScrollRequest } from '@/features/trajectory/components/step-timeline';
 import {
   buildTimelineSpanGroups,
   findCurrentSpanGroup,
@@ -22,6 +22,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
   const [isAnnotationPanelOpen, setIsAnnotationPanelOpen] = useState(false);
   const [annotationScope, setAnnotationScope] = useState<AnnotationPanelScope>('step');
   const [collapsedSpanIds, setCollapsedSpanIds] = useState<string[]>([]);
+  const [timelineScrollRequest, setTimelineScrollRequest] = useState<TimelineScrollRequest | null>(null);
 
   const selectedStep = useMemo(
     () => trajectory.steps.find((step) => step.id === selectedStepId) ?? trajectory.steps[0],
@@ -60,6 +61,10 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
 
     setSelectedStepId(group.startStepId);
     setCollapsedSpanIds((current) => current.filter((id) => id !== spanId));
+    setTimelineScrollRequest({
+      targetId: group.startStepId,
+      nonce: Date.now(),
+    });
   };
 
   return (
@@ -79,7 +84,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
         onOpenTrajectoryAnnotations={() => openAnnotationPanel('trajectory')}
       />
 
-      <section className="grid min-h-[560px] grid-cols-1 gap-4 xl:grid-cols-12">
+      <section className="grid min-h-[560px] grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-4">
           <StepTimeline
             steps={trajectory.steps}
@@ -90,6 +95,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
             collapsedSpanIds={collapsedSpanIds}
             onToggleSpanCollapse={toggleSpanCollapse}
             onFocusSpan={focusSpan}
+            scrollRequest={timelineScrollRequest}
           />
         </div>
         <div className="xl:col-span-8">

@@ -11,7 +11,7 @@ traceforge 是一个面向 **agent trajectory 审查、标注、分析和 LLM ju
 
 当前仓库处于 **文档优先 + MVP 技术骨架阶段**：
 - 已落地 Next.js + TypeScript + Tailwind 前端骨架；
-- 已提供结构化 mock trajectory 与 trajectory detail 页面（轨迹浏览优先，标注按需打开）；
+- 已提供基于真实 Claude Code 事件流的逐 event mock trajectory 与 trajectory detail 页面（轨迹浏览优先，标注按需打开）；
 - 当前 MVP 明确不接数据库，先用 sample/mock JSON 验证研究闭环。
 
 ## 快速开始
@@ -63,8 +63,9 @@ traceforge/
 ## 已实现的最小能力（本轮）
 
 - 核心类型：`Trajectory`、`Step`、`Annotation`、`EvidenceSpan`、`AspectSpec`、`JudgeRun`。
-- 默认样例：`sample-data/trajectory.sample.json`。
-- `sample-data/trajectory.cc.example.json` 保留为后续事件流导入/适配的参考输入，不是当前默认展示路径。
+- 默认样例：`sample-data/trajectory.cc.example.json`，按原始 event 逐条映射为 step。
+- 配套 mock 标注：`sample-data/trajectory.cc.annotations.json`，覆盖 trajectory / span / step 三层。
+- 结构化旧样例 `sample-data/trajectory.sample.json` 继续保留，作为备用对照与回归输入。
 - 基础 app shell。
 - trajectory detail 研究视图：
   - 顶部 Annotation Summary（整体判断、当前阶段、span 快速跳转）
@@ -85,12 +86,18 @@ traceforge/
 
 ## 当前默认数据路径
 
-当前首页和详情页默认加载的是结构化样例轨迹：
+当前首页和详情页默认加载的是基于真实事件流逐条映射出的样例轨迹：
 
-- [sample-data/trajectory.sample.json](/Users/wangyufeng/code_hub/traceforge/sample-data/trajectory.sample.json)
+- [sample-data/trajectory.cc.example.json](/Users/wangyufeng/code_hub/traceforge/sample-data/trajectory.cc.example.json)
+- [sample-data/trajectory.cc.annotations.json](/Users/wangyufeng/code_hub/traceforge/sample-data/trajectory.cc.annotations.json)
 
-这条样例已经补充了：
+这条默认样例已经补充了：
 
 - trajectory / span / step 三种粒度的 mock 标注
-- `workflow.phase` 阶段标签
+- `workflow.phase` 阶段标签与关键 event judgment
+- 原始 event 顺序、原始 tool_use / tool_result 拆分与原始文本内容
 - `rationale` 字段，用于展示标注理由
+
+仓库中仍保留旧的结构化样例：
+
+- [sample-data/trajectory.sample.json](/Users/wangyufeng/code_hub/traceforge/sample-data/trajectory.sample.json)
