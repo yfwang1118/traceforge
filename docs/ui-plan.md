@@ -38,7 +38,7 @@
 
 1. 默认关闭，避免低频操作干扰高频“看轨迹”流程。
 2. 打开时优先定位到当前上下文（当前 step 或 trajectory）。
-3. 抽屉内支持 target 快速切换（step / trajectory / all），减少页面跳转。
+3. 抽屉内支持 target 快速切换（step / span / trajectory / all），减少页面跳转。
 4. 关闭后保留当前 step 位置与阅读上下文，不重排主区域。
 
 ### 2.3 顶部汇总条（新增）
@@ -93,7 +93,8 @@ MVP 当前最小可用交互（必须落地）：
 4. 展开态下：
    - 恢复原始 step 列表；
    - span 名称退化为一条细 bar，而不是继续占据完整标题行；
-   - 鼠标悬停在细 bar 上时，显示该 span 的阶段名与理由摘要。
+   - 鼠标悬停在细 bar 上时，仅显示该 span 的阶段名；
+   - 展开态头部第一行仍需保留 span 标签，避免研究员失去当前阶段语义。
 
 这个交互的目标不是把 timeline 改造成“阶段视图”，而是在长轨迹中提供一层不打断 step 阅读的压缩能力。
 
@@ -101,6 +102,7 @@ MVP 当前最小可用交互（必须落地）：
 
 - 错误 step 使用高对比颜色但避免过度干扰。
 - 已标注 step 给出轻量标识，支持快速筛选“未标注步骤”。
+- 不同 span 标签应映射为稳定的颜色族，而不是全部使用同一种强调色。
 
 ## 4. Annotation Panel 设计
 
@@ -112,7 +114,7 @@ MVP 当前最小可用交互（必须落地）：
 
 2. annotation 列表
    - 按更新时间倒序
-   - 每项展示：aspect、value、confidence、status、evidence 数量
+   - 每项展示：aspect、value(label)、rationale、confidence、status、evidence 数量
 
 3. annotation 编辑器
    - 字段顺序固定：`aspect -> value -> confidence -> evidence -> provenance -> status`

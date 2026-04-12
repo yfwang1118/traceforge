@@ -22,13 +22,15 @@
   - `step`
   - `span`
   - `trajectory`
-- 字段覆盖：`target / aspect / value / confidence / evidence / provenance / status`。
+- 字段覆盖：`target / aspect / value / rationale / confidence / evidence / provenance / status`。
 
 ## 2.3 导入 sample trajectory JSON
 
 - 支持从本地或预置目录加载样例 JSON。
 - 导入后可立即在 trajectory detail 中浏览与标注。
 - 导入格式应可校验并给出可读错误信息（字段缺失、类型不匹配、step 引用非法）。
+- 当前默认展示路径使用结构化样例 `sample-data/trajectory.sample.json`。
+- `sample-data/trajectory.cc.example.json` 作为后续事件流导入的参考输入保留，但不作为当前默认 loader 的主路径。
 
 ## 2.4 少量 aspect 先行
 
@@ -71,7 +73,7 @@
 
 1. 能导入并渲染 sample trajectory JSON；
 2. 能在 step/span/trajectory 上完成标注 CRUD；
-3. 每条标注可设置 aspect、value、confidence、evidence、status；
+3. 每条标注可设置 aspect、value、rationale、confidence、evidence、status；
 4. 标注数据可导出为结构化 JSON；
 5. 研究员可基于该结果完成一次失败案例复盘。
 
@@ -101,31 +103,20 @@
 
 换言之：**现在没有数据库是刻意的 MVP 边界，不是忽略大规模需求**。
 
-## 8. Claude Code（`trajectory.cc.example.json`）格式适配约束（新增）
+## 8. 参考输入样例（非默认路径）
 
-为了支持 `sample-data/trajectory.cc.example.json` 这类“事件流数组”格式，MVP 增加以下约束：
+当前仓库保留了额外参考样例，用于后续导入器设计与 UI 回归：
 
-1. **导入层双格式兼容**
-   - 继续支持既有标准 `Trajectory` 对象 JSON。
-   - 新增支持 Claude Code 风格事件数组（每条记录包含 `uuid/parentUuid/type/message/timestamp` 等字段）。
+1. `sample-data/trajectory.cc.example.json`
+   - Claude Code 风格事件流样例；
+   - 当前不作为默认 loader 的输入；
+   - 后续若重新接入事件流导入，应单独实现和验证解析层。
 
-2. **解析策略（事件 -> Step）**
-   - 每条事件映射为一个 step，`index` 由时间顺序生成。
-   - `step.type` 由事件角色与消息内容推断：
-     - user/system -> `observe`
-     - assistant 文本消息 -> `reason` / `respond`（尾步优先归类为 `respond`）
-     - assistant tool_use -> `tool`
-   - `input/output` 保留原始文本，tool_use 输入序列化到 `input`，tool 返回摘要进入 `output`。
+2. `sample-data/trajectory.sample.json`
+   - 当前默认结构化样例；
+   - 用于驱动 trajectory / span / step 三层标注演示与 UI 调整。
 
-3. **鲁棒性要求**
-   - 对 `message.content` 同时兼容 string / block 数组两种形态。
-   - 缺失字段时使用可读 fallback（例如 “(empty message)”），避免渲染报错。
-   - status 推断规则：含错误关键词或异常字段为 `error`，含告警关键词为 `warn`，其余 `ok`。
+原则：
 
-4. **展示层补充信息**
-   - Timeline 增加 role、时间、tool 标签，提升长轨迹定位效率。
-   - Step Detail 增加“原始元信息”区（uuid/parentUuid/requestId/timestamp/模型与 token 使用摘要），便于 judge/debug 场景追溯。
-
-5. **不改变 annotation 抽象**
-   - 该适配仅影响 trajectory 导入与阅读体验，不改变 annotation schema。
-
+- 不因为保留参考样例就夸大当前默认实现能力；
+- 任何重新引入事件流导入的工作，都应重新在 docs 中明确“已实现”与“计划中”的边界。
