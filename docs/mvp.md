@@ -111,7 +111,9 @@
 1. `sample-data/trajectory.cc.example.json`
    - Claude Code 风格事件流样例；
    - 当前默认演示即基于这份原始 event log；
-   - 当前展示层对它采用 raw event 模式：1 条 event = 1 个 step。
+   - 当前展示层对它采用 **研究可读优先** 的 step 映射：
+     - 普通消息 event 保持 1 event = 1 step；
+     - `assistant.tool_use` 与其对应的 `tool_result` / `toolUseResult` 绑定为同一个 tool step。
 
 2. `sample-data/trajectory.cc.annotations.json`
    - 与上述事件流样例配套的 mock annotations；
@@ -125,7 +127,7 @@
 
 原则：
 
-- 默认演示可以基于真实 event log，且当前优先保留原始 event 粒度；
-- 即便展示 raw event，UI 仍然必须落在统一抽象模型上；
+- 默认演示可以基于真实 event log，且优先保证“研究可读性 + 证据可回溯”；
+- 即便展示经过绑定后的 step，UI 仍然必须落在统一抽象模型上；
 - 不因为保留原始 event log 就夸大“通用事件流导入”已经完成；
 - 若后续要支持通用事件流导入，仍需单独在 docs 中明确“已实现”与“计划中”的边界。

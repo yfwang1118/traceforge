@@ -48,6 +48,8 @@ export type Step = {
     stopReason?: string | null;
     inputTokens?: number;
     outputTokens?: number;
+    sourceEventIds?: string[];
+    sourceEventIndexes?: number[];
   };
 };
 

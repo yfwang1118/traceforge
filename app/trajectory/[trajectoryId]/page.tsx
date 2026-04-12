@@ -17,9 +17,31 @@ export default async function TrajectoryDetailPage({ params }: TrajectoryDetailP
 
   return (
     <AppShell>
-      <section className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-slate-900">Trajectory Detail</h2>
-        <p className="mt-1 text-sm text-slate-600">{trajectory.task}</p>
+      <section className="mb-5 overflow-hidden rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.84))] p-5 shadow-[0_28px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Trajectory Detail</p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{trajectory.task}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              当前以研究可读优先的 step 视图回放轨迹：普通消息按 event 展示，工具调用与返回结果绑定展示。
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Trajectory</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{trajectory.id}</p>
+            </div>
+            <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Steps</p>
+              <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trajectory.steps.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Annotations</p>
+              <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trajectory.annotations.length}</p>
+            </div>
+          </div>
+        </div>
       </section>
       <TrajectoryReviewWorkspace trajectory={trajectory} />
     </AppShell>

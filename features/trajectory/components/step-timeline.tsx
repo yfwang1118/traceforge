@@ -380,7 +380,7 @@ export function StepTimeline({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold tracking-tight text-slate-900">Step Timeline</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">沿时间顺序浏览 event，快速定位关键决策、工具往返与异常步骤。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">沿时间顺序浏览 step，工具调用与返回按同一步绑定，便于快速定位决策与异常。</p>
         </div>
 
         <div className="grid min-w-[220px] flex-1 gap-2 sm:max-w-[360px] sm:grid-cols-3">

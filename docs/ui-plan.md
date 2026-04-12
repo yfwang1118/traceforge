@@ -189,7 +189,11 @@ MVP 支持基础状态：
 
 4. **样例数据升级**
    - `sample-data` 至少保留 1 条真实 code-agent 对话流样例，默认演示可直接使用 `trajectory.cc.example.json` 这类原始 event log。
-   - 当前默认对话流样例采用 raw event 模式：1 条 event = 1 个 step，并配套 mock annotations 进入 Timeline / Detail / Annotation UI。
+   - 当前默认对话流样例采用“研究可读优先”的 step 映射：
+     - 普通对话/观察类 event 维持 1 event = 1 step；
+     - `assistant.tool_use` 与后续匹配的 `tool_result` / `toolUseResult` 合并为一个 tool step；
+     - 未匹配到调用的孤立 `tool_result` 保留为独立 step（orphan result）。
+   - 配套 mock annotations 仍用于驱动 Timeline / Detail / Annotation UI。
    - 结构化问题修复样例可继续保留为对照输入，用于 UI 回归与研究演示。
 
 5. **工具返回（`toolUseResult`）可读化展示**
@@ -199,25 +203,26 @@ MVP 支持基础状态：
 
 ## 9. Step 语义与角色绑定规则（当前默认样例）
 
-针对当前默认的 Claude Code event log 样例，展示层采用 **raw event 视图**：
+针对当前默认的 Claude Code event log 样例，展示层采用 **工具调用绑定视图**：
 
-1. **一条 event 对应一个 step**
-   - 时间顺序必须与原始 JSON 完全一致，不做跨 event 合并。
-   - step id 应稳定映射回原始 event 序号，便于研究员回溯证据。
+1. **step 粒度规则**
+   - 普通 event（user / assistant text）默认 1 event = 1 step；
+   - `assistant.tool_use` 与其后匹配的 `tool_result` / `toolUseResult` 绑定为同一个 step；
+   - 时间顺序必须保持与原始 JSON 一致，不允许重排。
 
-2. **消息与工具结果分开保留**
-   - assistant 的 `tool_use` event 单独展示；
-   - 后续 `tool_result` / `toolUseResult` event 也单独展示；
-   - 不在默认视图中把它们压成复合 step，避免研究员丢失底层时序。
+2. **绑定与回溯并存**
+   - Step Detail 以“Tool Call + Tool Result”作为主视图；
+   - 同时保留原始 event 证据（调用参数、返回原文、来源 event）用于追溯；
+   - 不允许因为绑定展示而丢失原始证据路径。
 
 3. **多工具调用场景**
    - 若同一 assistant event 中包含多个 `tool_use`，该 event 仍只占一个 step；
-   - Step Detail 中按调用顺序渲染工具列表；
-   - 对后续独立返回的 `tool_result` event，保留原始返回 event，不静默折叠。
+   - Step Detail 中按调用顺序渲染工具列表，并把返回按 `tool_use_id` 绑定到对应调用；
+   - 若返回缺失或未匹配，显式展示 `waiting` / `orphan result` 状态，不静默丢弃。
 
 4. **原始证据优先**
    - 标题、状态和 tool 标签允许做轻量摘要；
-   - 但详情面板必须能看到原始 event 文本、原始参数和原始结果。
+   - 但详情面板必须能看到原始参数、原始结果和来源 event 证据。
 
 ## 10. Tool 参数 / 返回的可读化视图规范（新增）
 
