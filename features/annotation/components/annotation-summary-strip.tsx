@@ -330,7 +330,7 @@ export function AnnotationSummaryStrip({
               </div>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 max-h-[68vh] space-y-3 overflow-y-auto pr-2">
               {roundPhaseSets.length === 0 ? (
                 <p className="rounded-[22px] border border-dashed border-slate-200 bg-white/75 p-4 text-sm text-slate-500">
                   当前暂无 round 结构。

@@ -89,6 +89,19 @@ function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
 }
 
+function isPresentMetadataValue(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    return normalized.length > 0 && normalized !== 'N/A' && normalized !== 'null' && normalized !== 'undefined';
+  }
+
+  return true;
+}
+
 function toPrettyJson(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -203,6 +216,21 @@ function SurfaceChip({ children, className = '' }: { children: ReactNode; classN
     <span className={`rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[10px] font-medium text-slate-600 ${className}`}>
       {children}
     </span>
+  );
+}
+
+function MetadataChip({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="rounded-full border border-slate-200/80 bg-white/92 px-3 py-1.5 text-[11px] text-slate-600 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.28)]">
+      <span className="font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <span className="ml-2 font-medium text-slate-800">{value}</span>
+    </div>
   );
 }
 
@@ -531,20 +559,26 @@ export function StepDetail({ trajectory, selectedStep, currentRoundGroup, onOpen
     selectedStep.type === 'tool' || toolCalls.length > 0 || toolResults.length > 0 || toolInteractions.length > 0;
   const hasRawInput = Boolean(inputText && inputText !== 'N/A' && inputText !== '(empty message)');
   const hasRawOutput = Boolean(outputText && outputText !== 'N/A' && outputText !== '(no output)');
+  const hasDistinctOutput = hasRawOutput && outputText.trim() !== inputText.trim();
+  const isUserStep = selectedStep.role === 'user';
+  const isAssistantLikeStep = selectedStep.role === 'assistant' || selectedStep.type === 'respond' || selectedStep.type === 'reason';
   const statusTone = stepStatusClassMap[selectedStep.status];
   const roleTone = roleClassMap[selectedStep.role ?? 'unknown'];
   const currentRoundTaskLabel = currentRoundGroup?.taskTypeLabel ?? null;
   const currentRoundIntentLabels = currentRoundGroup?.intentTypeLabels ?? [];
   const metadataItems = [
-    { label: 'stepId', value: selectedStep.id },
-    { label: 'parentUuid', value: selectedStep.metadata?.parentUuid ?? 'N/A' },
-    { label: 'timestamp', value: formatTimestamp(selectedStep.timestamp) },
-    { label: 'requestId', value: selectedStep.metadata?.requestId ?? 'N/A' },
-    { label: 'model', value: selectedStep.metadata?.model ?? 'N/A' },
-    { label: 'stopReason', value: selectedStep.metadata?.stopReason ?? 'N/A' },
-    { label: 'inputTokens', value: selectedStep.metadata?.inputTokens ?? 'N/A' },
-    { label: 'outputTokens', value: selectedStep.metadata?.outputTokens ?? 'N/A' },
-  ];
+    { label: 'step', value: selectedStep.id },
+    { label: 'time', value: formatTimestamp(selectedStep.timestamp) },
+    { label: 'request', value: selectedStep.metadata?.requestId },
+    { label: 'model', value: selectedStep.metadata?.model },
+    { label: 'stop', value: selectedStep.metadata?.stopReason },
+    { label: 'input', value: selectedStep.metadata?.inputTokens !== undefined ? `${selectedStep.metadata.inputTokens} tok` : undefined },
+    { label: 'output', value: selectedStep.metadata?.outputTokens !== undefined ? `${selectedStep.metadata.outputTokens} tok` : undefined },
+    {
+      label: 'source',
+      value: selectedStep.metadata?.sourceEventIndexes?.length ? `${selectedStep.metadata.sourceEventIndexes.length} events` : undefined,
+    },
+  ].filter((item) => isPresentMetadataValue(item.value));
 
   return (
     <section className="h-full overflow-hidden rounded-[28px] border border-white/80 bg-white/80 p-5 shadow-[0_30px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur">
@@ -692,36 +726,57 @@ export function StepDetail({ trajectory, selectedStep, currentRoundGroup, onOpen
           </>
         ) : (
           <>
-            <DetailBlock
-              eyebrow={selectedStep.role === 'user' ? 'User Prompt' : 'Input'}
-              meta={<SurfaceChip>{inputText.length} chars</SurfaceChip>}
-            >
-              <pre className="max-h-72 overflow-auto rounded-[22px] border border-white/80 bg-white/95 p-4 font-mono text-[12px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
-                {inputText}
-              </pre>
-            </DetailBlock>
+            {isUserStep ? (
+              <DetailBlock
+                eyebrow="User Prompt"
+                title="这一卡只保留用户原始输入，避免和系统派生的 output 摘要重复。"
+                meta={<SurfaceChip>{inputText.length} chars</SurfaceChip>}
+                className="border-sky-200 bg-[linear-gradient(180deg,rgba(239,246,255,0.84),rgba(255,255,255,0.94))]"
+              >
+                <pre className="max-h-80 overflow-auto rounded-[22px] border border-sky-200/80 bg-white/95 p-4 font-mono text-[12px] leading-6 text-slate-800 whitespace-pre-wrap break-words">
+                  {inputText}
+                </pre>
+              </DetailBlock>
+            ) : (
+              <>
+                {hasRawInput ? (
+                  <DetailBlock
+                    eyebrow={isAssistantLikeStep ? 'Input Context' : 'Input'}
+                    meta={<SurfaceChip>{inputText.length} chars</SurfaceChip>}
+                  >
+                    <pre className="max-h-64 overflow-auto rounded-[22px] border border-white/80 bg-white/95 p-4 font-mono text-[12px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
+                      {inputText}
+                    </pre>
+                  </DetailBlock>
+                ) : null}
 
-            <DetailBlock
-              eyebrow={selectedStep.role === 'assistant' ? 'Assistant Action' : 'Output'}
-              meta={<SurfaceChip>{outputText.length} chars</SurfaceChip>}
-            >
-              <pre className="max-h-72 overflow-auto rounded-[22px] border border-white/80 bg-white/95 p-4 font-mono text-[12px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
-                {outputText}
-              </pre>
-            </DetailBlock>
+                {hasDistinctOutput ? (
+                  <DetailBlock
+                    eyebrow={isAssistantLikeStep ? 'Assistant Output' : 'Output'}
+                    title={isAssistantLikeStep ? '将真正产出的回复或观察结果单独拉出来，避免与输入上下文混在一起。' : undefined}
+                    meta={<SurfaceChip>{outputText.length} chars</SurfaceChip>}
+                    className="border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.8),rgba(255,255,255,0.94))]"
+                  >
+                    <pre className="max-h-72 overflow-auto rounded-[22px] border border-emerald-200/80 bg-white/95 p-4 font-mono text-[12px] leading-6 text-slate-800 whitespace-pre-wrap break-words">
+                      {outputText}
+                    </pre>
+                  </DetailBlock>
+                ) : null}
+              </>
+            )}
           </>
         )}
 
-        <DetailBlock eyebrow="Raw Metadata" title="Stable identifiers and model-side fields remain visible for evidence tracing.">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {metadataItems.map((item) => (
-              <div key={item.label} className="rounded-[22px] border border-slate-200/80 bg-white/90 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                <p className="mt-2 text-sm font-medium text-slate-800 break-words">{String(item.value)}</p>
-              </div>
-            ))}
-          </div>
-        </DetailBlock>
+        {metadataItems.length > 0 ? (
+          <section className="rounded-[20px] border border-slate-200/70 bg-white/70 px-4 py-3 shadow-[0_18px_36px_-34px_rgba(15,23,42,0.22)]">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="mr-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Metadata</p>
+              {metadataItems.map((item) => (
+                <MetadataChip key={item.label} label={item.label} value={String(item.value)} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {selectedStep.error ? (
           <DetailBlock
