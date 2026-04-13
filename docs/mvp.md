@@ -31,6 +31,7 @@
 - 导入格式应可校验并给出可读错误信息（字段缺失、类型不匹配、step 引用非法）。
 - 当前默认展示路径使用 `sample-data/trajectory.cc.example.json`，并按原始 event 顺序逐条映射为统一 `Trajectory` 抽象中的 step。
 - 与该样例配套的 mock annotations 存放在 `sample-data/trajectory.cc.annotations.json`，用于驱动 step / span / trajectory 三层演示。
+- 该 mock annotation 样例中的 span 需要连续覆盖完整对话粒度；若存在未覆盖区间，展示层需自动补齐为“未标注对话段”以避免时间线断层。
 - `sample-data/trajectory.sample.json` 继续保留为结构化旧样例，用于对照和回归，不再作为默认 loader 的主路径。
 
 ## 2.4 少量 aspect 先行
@@ -114,6 +115,8 @@
    - 当前展示层对它采用 **研究可读优先** 的 step 映射：
      - 普通消息 event 保持 1 event = 1 step；
      - `assistant.tool_use` 与其对应的 `tool_result` / `toolUseResult` 绑定为同一个 tool step。
+     - `user` step 在展示层上浮为对话轮次头部（round header），位于 span 之上。
+   - 页面开头总览需直接展示：`steps / rounds / jumps / annotations` 等关键指标，帮助研究员先建立对话结构心智模型。
 
 2. `sample-data/trajectory.cc.annotations.json`
    - 与上述事件流样例配套的 mock annotations；

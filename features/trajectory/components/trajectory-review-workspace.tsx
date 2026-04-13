@@ -11,6 +11,7 @@ import {
   findCurrentSpanGroup,
   getAnnotationCountByStepId,
 } from '@/lib/annotation-presentation';
+import { buildConversationRounds, countConversationJumps } from '@/lib/trajectory-presentation';
 import type { Trajectory } from '@/types';
 
 type TrajectoryReviewWorkspaceProps = {
@@ -22,6 +23,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
   const [isAnnotationPanelOpen, setIsAnnotationPanelOpen] = useState(false);
   const [annotationScope, setAnnotationScope] = useState<AnnotationPanelScope>('step');
   const [collapsedSpanIds, setCollapsedSpanIds] = useState<string[]>([]);
+  const [collapsedRoundIds, setCollapsedRoundIds] = useState<string[]>([]);
   const [timelineScrollRequest, setTimelineScrollRequest] = useState<TimelineScrollRequest | null>(null);
 
   const selectedStep = useMemo(
@@ -34,6 +36,11 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
     [annotationCountByStepId, selectedStepId, trajectory],
   );
   const currentSpanGroup = useMemo(() => findCurrentSpanGroup(spanGroups, selectedStepId), [selectedStepId, spanGroups]);
+  const conversationRounds = useMemo(
+    () => buildConversationRounds(trajectory.steps, selectedStep?.id ?? ''),
+    [selectedStep?.id, trajectory.steps],
+  );
+  const conversationJumpCount = useMemo(() => countConversationJumps(conversationRounds), [conversationRounds]);
   const selectedStepAnnotationCount = selectedStep ? (annotationCountByStepId[selectedStep.id] ?? 0) : 0;
   const totalStepAnnotationCount = trajectory.annotations.filter((annotation) => annotation.target.type === 'step').length;
   const spanAnnotationCount = trajectory.annotations.filter((annotation) => annotation.target.type === 'span').length;
@@ -52,17 +59,31 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
     setCollapsedSpanIds((current) => (current.includes(spanId) ? current.filter((id) => id !== spanId) : [...current, spanId]));
   };
 
-  const focusSpan = (spanId: string) => {
+  const toggleRoundCollapse = (roundId: string) => {
+    setCollapsedRoundIds((current) => (current.includes(roundId) ? current.filter((id) => id !== roundId) : [...current, roundId]));
+  };
+
+  const focusSpan = (spanId: string, preferredStepId?: string) => {
     const group = spanGroups.find((item) => item.id === spanId);
 
     if (!group) {
       return;
     }
 
-    setSelectedStepId(group.startStepId);
+    const targetStepId = preferredStepId && group.stepIds.includes(preferredStepId) ? preferredStepId : group.startStepId;
+
+    setSelectedStepId(targetStepId);
+    setCollapsedRoundIds((current) => {
+      const containingRound = conversationRounds.find((round) => round.stepIds.includes(targetStepId));
+      if (!containingRound || !current.includes(containingRound.id)) {
+        return current;
+      }
+
+      return current.filter((id) => id !== containingRound.id);
+    });
     setCollapsedSpanIds((current) => current.filter((id) => id !== spanId));
     setTimelineScrollRequest({
-      targetId: group.startStepId,
+      targetId: targetStepId,
       nonce: Date.now(),
     });
   };
@@ -78,6 +99,8 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
         currentStepAnnotationCount={selectedStepAnnotationCount}
         spanAnnotationCount={spanAnnotationCount}
         trajectoryAnnotationCount={trajectoryAnnotations.length}
+        conversationRoundCount={conversationRounds.length}
+        conversationJumpCount={conversationJumpCount}
         onFocusSpan={focusSpan}
         onOpenStepAnnotations={() => openAnnotationPanel('step')}
         onOpenSpanAnnotations={() => openAnnotationPanel('span')}
@@ -92,8 +115,11 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
             onSelectStep={setSelectedStepId}
             annotationCountByStepId={annotationCountByStepId}
             spanGroups={spanGroups}
+            conversationRounds={conversationRounds}
             collapsedSpanIds={collapsedSpanIds}
+            collapsedRoundIds={collapsedRoundIds}
             onToggleSpanCollapse={toggleSpanCollapse}
+            onToggleRoundCollapse={toggleRoundCollapse}
             onFocusSpan={focusSpan}
             scrollRequest={timelineScrollRequest}
           />

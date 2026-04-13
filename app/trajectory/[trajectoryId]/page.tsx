@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { TrajectoryReviewWorkspace } from '@/features/trajectory/components/trajectory-review-workspace';
 import { loadTrajectoryById } from '@/lib/mock-data';
+import { buildConversationRounds, countConversationJumps } from '@/lib/trajectory-presentation';
 
 type TrajectoryDetailPageProps = {
   params: Promise<{ trajectoryId: string }>;
@@ -15,6 +16,9 @@ export default async function TrajectoryDetailPage({ params }: TrajectoryDetailP
     notFound();
   }
 
+  const rounds = buildConversationRounds(trajectory.steps, trajectory.steps[0]?.id ?? '');
+  const conversationJumpCount = countConversationJumps(rounds);
+
   return (
     <AppShell>
       <section className="mb-5 overflow-hidden rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.84))] p-5 shadow-[0_28px_60px_-40px_rgba(15,23,42,0.45)] backdrop-blur">
@@ -27,7 +31,7 @@ export default async function TrajectoryDetailPage({ params }: TrajectoryDetailP
             </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Trajectory</p>
               <p className="mt-2 text-sm font-semibold text-slate-900">{trajectory.id}</p>
@@ -39,6 +43,14 @@ export default async function TrajectoryDetailPage({ params }: TrajectoryDetailP
             <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Annotations</p>
               <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trajectory.annotations.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Rounds</p>
+              <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{rounds.length}</p>
+            </div>
+            <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Jumps</p>
+              <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{conversationJumpCount}</p>
             </div>
           </div>
         </div>

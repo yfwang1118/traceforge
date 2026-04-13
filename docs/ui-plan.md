@@ -48,9 +48,10 @@
 summary strip 至少包含：
 
 1. trajectory / span / step 标注数量摘要；
-2. trajectory 级整体判断；
-3. 当前 step 所属阶段（若存在 span）及其简短理由；
-4. span 阶段 chips，点击后可直接定位并聚焦对应区段。
+2. 对话结构摘要：dialogue rounds 数量 + round jumps（轮次跳转）数量；
+3. trajectory 级整体判断；
+4. 当前 step 所属阶段（若存在 span）及其简短理由；
+5. span 阶段 chips，点击后可直接定位并聚焦对应区段。
 
 原则：
 
@@ -95,8 +96,46 @@ MVP 当前最小可用交互（必须落地）：
    - span 名称退化为一条细 bar，而不是继续占据完整标题行；
    - 鼠标悬停在细 bar 上时，仅显示该 span 的阶段名；
    - 展开态头部第一行仍需保留 span 标签，避免研究员失去当前阶段语义。
+5. 对默认 mock annotation 样例，span 需要覆盖完整对话粒度（不留未分段 steps）。
+   - 若存在未覆盖区间，展示层允许自动补齐“未标注对话段”作为临时 span，以避免时间线出现语义断档。
 
 这个交互的目标不是把 timeline 改造成“阶段视图”，而是在长轨迹中提供一层不打断 step 阅读的压缩能力。
+
+### 3.2.2 Dialogue Round 分层（新增）
+
+对于真实对话轨迹，`user` 角色不应继续作为普通 step 卡片和 assistant/tool step 混排，而应提升为 **对话轮次（dialogue round）头部**：
+
+1. 每次出现 `user` prompt，视为一个新的 round 开始。
+2. round 的层级高于 `span`：
+   - `round`
+   - `span / phase`
+   - `step`
+3. round header 至少展示：
+   - round 序号
+   - 用户问题摘要
+   - 覆盖的 step 范围
+   - 包含的 assistant/tool step 数
+4. 默认时间线中：
+   - `user` prompt 不再重复渲染成普通 step 卡片；
+   - 其内容作为 round header 的主文案；
+   - round 内再继续展示 spans 与 steps。
+5. 点击 round header 时：
+   - 中栏 detail 优先展示该轮的用户问题上下文；
+   - 并保留当前选中 step 的细节能力。
+
+目标：
+
+- 让研究员先识别“这一轮在讨论什么”；
+- 再进入该轮内部的阶段推进与局部 step 判断；
+- 避免时间线被大量 `assistant:` / `tool:` 标签噪声淹没。
+
+### 3.2.3 多维折叠（新增）
+
+时间线折叠能力不应只停留在 span 维度，还应支持 round 维度：
+
+1. `round` 支持收起/展开（收起后仅保留 round header 与关键摘要）。
+2. `span` 支持收起/展开（保持现有阶段压缩能力）。
+3. 当通过 summary chip 跳转到某个 span 时，需自动展开其所属 round 与该 span，避免“跳到了不可见节点”。
 
 ## 3.3 可视化提示
 
@@ -183,6 +222,7 @@ MVP 支持基础状态：
 2. **时间线信息密度**
    - Step Timeline 支持滚动列表，确保 20+ step 轨迹仍能快速定位。
    - 每个 step 显示：索引、类型、状态、可选 tool 标签，标题最多两行避免抖动。
+   - 对话型样例中，`user` prompt 作为 round header 展示，不与 assistant/tool steps 平铺混排。
 
 3. **布局稳定性**
    - 三栏布局在桌面端保持稳定；在窄屏自动降级为单列，优先保证“先定位后阅读”的流畅性。
@@ -210,6 +250,11 @@ MVP 支持基础状态：
    - `assistant.tool_use` 与其后匹配的 `tool_result` / `toolUseResult` 绑定为同一个 step；
    - 时间顺序必须保持与原始 JSON 一致，不允许重排。
 
+1.1 **round 粒度规则**
+   - `user` step 同时承担 “对话轮次起点” 的语义；
+   - 展示时，`user` step 上浮为 round header；
+   - round 内部继续容纳 spans 与普通 steps。
+
 2. **绑定与回溯并存**
    - Step Detail 以“Tool Call + Tool Result”作为主视图；
    - 同时保留原始 event 证据（调用参数、返回原文、来源 event）用于追溯；
@@ -223,6 +268,11 @@ MVP 支持基础状态：
 4. **原始证据优先**
    - 标题、状态和 tool 标签允许做轻量摘要；
    - 但详情面板必须能看到原始参数、原始结果和来源 event 证据。
+
+5. **标题去角色噪声**
+   - 对默认样例而言，大部分 action 都由 assistant 发起，因此标题默认不再重复展示 `assistant:` 前缀；
+   - tool step 默认以工具名或动作摘要作为标题；
+   - role 仅在非默认语境（如 `user` / `system` / `unknown`）时作为辅助信息出现。
 
 ## 10. Tool 参数 / 返回的可读化视图规范（新增）
 
