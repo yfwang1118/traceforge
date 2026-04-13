@@ -33,7 +33,8 @@
    - 在 step/span 上定位异常行为（如错误工具选择、上下文遗失、目标偏移、伪完成）。
 
 3. **结构化标注（Structured Annotation）**
-   - 对 step/span/trajectory 打统一 schema 标注，包含置信度、证据、来源与状态。
+   - 对 step/span/round/trajectory 打统一 schema 标注，包含置信度、证据、来源与状态。
+   - 在对话型轨迹中，支持对用户问题所属 round 标注任务类别与意图类别。
 
 4. **证据绑定（Evidence Linking）**
    - 将结论绑定到可复核证据（轨迹片段、日志、judge 输出、对比样本）。
@@ -68,7 +69,7 @@
 ### 4.1 初版必须覆盖（In Scope）
 
 - 单条 trajectory detail 浏览。
-- 在 step / span / trajectory 目标上的统一标注。
+- 在 step / span / round / trajectory 目标上的统一标注。
 - 从 sample trajectory JSON 导入并进行本地审查。
 - 支持少量预置 aspect，验证抽象模型可用性。
 

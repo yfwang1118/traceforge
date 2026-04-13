@@ -38,7 +38,7 @@
 
 1. 默认关闭，避免低频操作干扰高频“看轨迹”流程。
 2. 打开时优先定位到当前上下文（当前 step 或 trajectory）。
-3. 抽屉内支持 target 快速切换（step / span / trajectory / all），减少页面跳转。
+3. 抽屉内支持 target 快速切换（step / round / span / trajectory / all），减少页面跳转。
 4. 关闭后保留当前 step 位置与阅读上下文，不重排主区域。
 
 ### 2.3 顶部汇总条（新增）
@@ -47,16 +47,23 @@
 
 summary strip 至少包含：
 
-1. trajectory / span / step 标注数量摘要；
+1. trajectory / round / span / step 标注数量摘要；
 2. 对话结构摘要：dialogue rounds 数量 + round jumps（轮次跳转）数量；
 3. trajectory 级整体判断；
-4. 当前 step 所属阶段（若存在 span）及其简短理由；
-5. span 阶段 chips，点击后可直接定位并聚焦对应区段。
+4. 当前 round 的用户问题卡片：
+   - 用户问题摘要；
+   - `request.task_type`；
+   - `request.intent_type`；
+   - 当前 round 覆盖的 step 范围与 round 标注数。
+5. 当前 step 所属阶段（若存在 span）及其简短理由；
+6. round 导航 chips，点击后可直接定位到对应用户问题；
+7. span 阶段 chips，点击后可直接定位并聚焦对应区段。
 
 原则：
 
 - 顶部汇总条只承担“概览 + 快速跳转”职责；
 - 完整细节仍然放在 timeline、detail 与 annotation drawer 中；
+- 信息顺序遵循：`trajectory verdict -> current question / round -> current phase -> current step`；
 - 这样可以把标注织进原有骨架，而不是让研究员在“阅读轨迹”和“查看标注”之间切到另一个工作区。
 
 ## 3. Step Timeline 设计
@@ -110,11 +117,14 @@ MVP 当前最小可用交互（必须落地）：
    - `round`
    - `span / phase`
    - `step`
+   - 一个 round 应对应一套 spans；默认情况下 span 不跨 round。
 3. round header 至少展示：
    - round 序号
    - 用户问题摘要
+   - task / intent 标签
    - 覆盖的 step 范围
    - 包含的 assistant/tool step 数
+   - round 标注数
 4. 默认时间线中：
    - `user` prompt 不再重复渲染成普通 step 卡片；
    - 其内容作为 round header 的主文案；
@@ -126,6 +136,7 @@ MVP 当前最小可用交互（必须落地）：
 目标：
 
 - 让研究员先识别“这一轮在讨论什么”；
+- 立即看到“这是 bug fix / 新需求 / 修正 / 不满反馈中的哪一种”；
 - 再进入该轮内部的阶段推进与局部 step 判断；
 - 避免时间线被大量 `assistant:` / `tool:` 标签噪声淹没。
 
@@ -136,6 +147,7 @@ MVP 当前最小可用交互（必须落地）：
 1. `round` 支持收起/展开（收起后仅保留 round header 与关键摘要）。
 2. `span` 支持收起/展开（保持现有阶段压缩能力）。
 3. 当通过 summary chip 跳转到某个 span 时，需自动展开其所属 round 与该 span，避免“跳到了不可见节点”。
+4. 顶部总览中的 phase 导航不应再全局平铺，而应按 round 分组展示“这一轮有哪些 phases”。
 
 ## 3.3 可视化提示
 
@@ -149,7 +161,7 @@ MVP 当前最小可用交互（必须落地）：
 
 1. 当前 target 卡片
    - target type + target id
-   - 快速切换 step/span/trajectory 上下文
+   - 快速切换 step/round/span/trajectory 上下文
 
 2. annotation 列表
    - 按更新时间倒序
@@ -158,6 +170,18 @@ MVP 当前最小可用交互（必须落地）：
 3. annotation 编辑器
    - 字段顺序固定：`aspect -> value -> confidence -> evidence -> provenance -> status`
    - 根据 aspect 动态约束 value 输入组件（枚举、数值、文本等）
+
+## 4.1.1 Round 标注专属要求（新增）
+
+当 target 为 `round` 时，面板中需要优先暴露“用户问题”相关字段，而不是与 step 完全等权混排：
+
+1. 顶部展示 lead user prompt 摘要与原文回跳入口。
+2. 默认优先显示：
+   - `request.task_type`
+   - `request.intent_type`
+   - `correctness.task_understanding`（可选）
+3. `request.intent_type` 建议使用多标签 chips 组件，而不是单个自由文本输入。
+4. round 标注创建完成后，应在 timeline 的 round header 与顶部 summary strip 中同步可见。
 
 ## 4.2 输入约束
 
@@ -210,6 +234,8 @@ MVP 支持基础状态：
 2. 不出现 target/aspect/value 语义错配。
 3. 在 100+ steps 的轨迹中仍可快速定位与回跳。
 4. 标注结果可导出并保持 schema 一致性。
+5. 对话型样例中，研究员能在 5 秒内看出“当前 round 的用户问题类别与意图类别”。
+6. 研究员能在不打开 timeline 细节的情况下，从顶部总览直接看出“当前 round 下有哪几段 phase，以及它们分别在做什么”。
 
 ## 8. 真实轨迹（对话流）展示优化（新增）
 
@@ -254,6 +280,7 @@ MVP 支持基础状态：
    - `user` step 同时承担 “对话轮次起点” 的语义；
    - 展示时，`user` step 上浮为 round header；
    - round 内部继续容纳 spans 与普通 steps。
+   - 用户问题类别与意图类别默认挂在 `round` 上，而不是分散挂在 round 内各个 step 上。
 
 2. **绑定与回溯并存**
    - Step Detail 以“Tool Call + Tool Result”作为主视图；

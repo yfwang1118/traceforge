@@ -1,6 +1,7 @@
 export type TargetType =
   | 'step'
   | 'span'
+  | 'round'
   | 'transition'
   | 'trajectory'
   | 'artifact'
@@ -40,6 +41,7 @@ export type EvidenceSpan = {
 export type TargetRef =
   | { type: 'step'; trajectoryId: string; stepId: string }
   | { type: 'span'; trajectoryId: string; startStepId: string; endStepId: string }
+  | { type: 'round'; trajectoryId: string; roundId: string; leadStepId: string; startStepId: string; endStepId: string }
   | { type: 'transition'; trajectoryId: string; fromStepId: string; toStepId: string }
   | { type: 'trajectory'; trajectoryId: string }
   | { type: 'artifact'; trajectoryId: string; artifactId: string }

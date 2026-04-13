@@ -35,21 +35,24 @@ type Annotation = {
 
 ## 3. Target Types（封闭集合）
 
-初始 target types 约定为以下七类：
+初始 target types 约定为以下八类：
 
 1. `step`
    - 单个执行步骤（一个 thought/action/tool/result 单元）。
 2. `span`
    - 若干连续步骤形成的区间（例如 steps 8-12）。
-3. `transition`
+3. `round`
+   - 一轮用户问题及其后续 assistant/tool 响应构成的对话单元。
+   - 由一个 lead user prompt 锚定，覆盖从该 prompt 开始到下一次 user prompt 之前的连续 steps。
+4. `transition`
    - 两个相邻或指定步骤之间的状态转移关系（step i -> step j）。
-4. `trajectory`
+5. `trajectory`
    - 整条轨迹级判断。
-5. `artifact`
+6. `artifact`
    - 轨迹中生成或引用的中间产物（文本、代码片段、工具输出文件等）。
-6. `milestone`
+7. `milestone`
    - 研究上定义的阶段性节点（例如“完成问题理解”“形成可执行计划”）。
-7. `comparison`
+8. `comparison`
    - 对两个实体（可为 step/span/trajectory）进行对比后的判断。
 
 > 说明：target type 是封闭集合，扩展必须通过文档版本化进行，不允许实现中临时发明未登记类型。
@@ -66,12 +69,31 @@ type Annotation = {
 type TargetRef =
   | { type: 'step'; trajectoryId: string; stepId: string }
   | { type: 'span'; trajectoryId: string; startStepId: string; endStepId: string }
+  | {
+      type: 'round';
+      trajectoryId: string;
+      roundId: string;
+      leadStepId: string;
+      startStepId: string;
+      endStepId: string;
+    }
   | { type: 'transition'; trajectoryId: string; fromStepId: string; toStepId: string }
   | { type: 'trajectory'; trajectoryId: string }
   | { type: 'artifact'; trajectoryId: string; artifactId: string }
   | { type: 'milestone'; trajectoryId: string; milestoneId: string }
   | { type: 'comparison'; left: TargetRef; right: TargetRef; comparisonId: string };
 ```
+
+### 4.1.1 对话轮次与“用户问题”标注约束
+
+在对话型轨迹中，`round` 是承载“用户这轮到底想让 agent 做什么”的默认 target：
+
+1. 对用户问题的 **任务类别**、**意图类别**、**需求变化类型** 等判断，默认挂在 `round` 上。
+2. `round` 必须保留 `leadStepId`，用于回跳到原始 user prompt 证据。
+3. `span` 默认视为 `round` 内部的阶段分段，不应跨越 round 边界。
+4. 若确有跨轮研究语义，优先改用 `trajectory` / `comparison` / `milestone` 表达，而不是让 `span` 横跨多个 round。
+5. `step` 上仍可标注局部行为质量（如 tool usefulness / progression），但不建议把“这一轮是什么需求”拆散到多个 step。
+6. 若研究需要对 user prompt 本文做更细粒度语言分析，优先通过 `round + evidence(step_excerpt)` 实现，而不是新增临时 `question` target。
 
 ### 4.2 `aspect`
 
@@ -83,6 +105,8 @@ type TargetRef =
 - `planning.decomposition_quality`
 - `tool.usefulness`
 - `safety.policy_risk`
+- `request.task_type`
+- `request.intent_type`
 
 ### 4.3 `value`
 
@@ -206,7 +230,12 @@ value type 必须从以下集合中选择：
 ## 8. MVP 阶段的最小落地约束
 
 在初版中：
-- target 仅强制支持 `step` / `span` / `trajectory`；
+- target 仅强制支持 `step` / `span` / `round` / `trajectory`；
 - 其他 target type 在 schema 层预留，但可以不在 UI 暴露；
 - aspect registry 仅启用少量高价值 aspect；
+- 对话型样例必须至少包含：
+  - `workflow.phase` 这类 `span` 标注；
+  - `request.task_type` 与 `request.intent_type` 这类 `round` 标注；
+  - 至少一条 `trajectory` 级整体判断；
+- `workflow.phase` 类型的 `span` 在默认样例中必须完整嵌套到单一 `round` 内，不允许跨 round 漂移；
 - 所有 annotation 写入都必须经过 schema 校验。

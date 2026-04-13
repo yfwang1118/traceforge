@@ -1,7 +1,12 @@
+import type { ConversationRound } from '@/lib/trajectory-presentation';
 import type { Annotation, AnnotationValue, Step, Trajectory } from '@/types';
 
 type SpanAnnotation = Annotation & {
   target: Extract<Annotation['target'], { type: 'span' }>;
+};
+
+type RoundAnnotation = Annotation & {
+  target: Extract<Annotation['target'], { type: 'round' }>;
 };
 
 export type TimelineSpanGroup = {
@@ -18,6 +23,16 @@ export type TimelineSpanGroup = {
   stepCount: number;
   stepAnnotationCount: number;
   containsSelectedStep: boolean;
+};
+
+export type RoundAnnotationGroup = {
+  round: ConversationRound;
+  annotations: Annotation[];
+  annotationCount: number;
+  taskTypeAnnotation: Annotation | null;
+  intentTypeAnnotation: Annotation | null;
+  taskTypeLabel: string | null;
+  intentTypeLabels: string[];
 };
 
 export type SpanTone = {
@@ -119,6 +134,32 @@ export function annotationValueLabel(value: AnnotationValue): string {
   return 'complex';
 }
 
+export function annotationValueLabels(value: AnnotationValue): string[] {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return [String(value)];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+        return [String(item)];
+      }
+
+      if (typeof item === 'object' && item && 'label' in item) {
+        return [String(item.label)];
+      }
+
+      return [];
+    });
+  }
+
+  if (value && typeof value === 'object' && 'relation' in value) {
+    return [String(value.relation)];
+  }
+
+  return [];
+}
+
 function fallbackHash(input: string): number {
   return Array.from(input).reduce((acc, char) => acc + char.charCodeAt(0), 0);
 }
@@ -149,6 +190,10 @@ export function getAnnotationCountByStepId(annotations: Annotation[]): Record<st
   }, {});
 }
 
+export function getAnnotationCountByTargetType(annotations: Annotation[], targetType: Annotation['target']['type']): number {
+  return annotations.filter((annotation) => annotation.target.type === targetType).length;
+}
+
 function getStepIndexMap(steps: Step[]): Record<string, number> {
   return steps.reduce<Record<string, number>>((acc, step) => {
     acc[step.id] = step.index;
@@ -165,6 +210,10 @@ function getStepIdMapByIndex(steps: Step[]): Record<number, string> {
 
 function isSpanAnnotation(annotation: Annotation): annotation is SpanAnnotation {
   return annotation.target.type === 'span';
+}
+
+function isRoundAnnotation(annotation: Annotation): annotation is RoundAnnotation {
+  return annotation.target.type === 'round';
 }
 
 export function buildTimelineSpanGroups(
@@ -327,4 +376,31 @@ export function buildTimelineSpanGroups(
 
 export function findCurrentSpanGroup(spanGroups: TimelineSpanGroup[], selectedStepId: string): TimelineSpanGroup | null {
   return spanGroups.find((group) => group.stepIds.includes(selectedStepId)) ?? null;
+}
+
+export function buildRoundAnnotationGroups(rounds: ConversationRound[], annotations: Annotation[]): RoundAnnotationGroup[] {
+  const roundAnnotations = annotations.filter(isRoundAnnotation);
+
+  return rounds.map((round) => {
+    const annotationsForRound = roundAnnotations.filter((annotation) => annotation.target.roundId === round.id);
+    const taskTypeAnnotation = annotationsForRound.find((annotation) => annotation.aspect === 'request.task_type') ?? null;
+    const intentTypeAnnotation = annotationsForRound.find((annotation) => annotation.aspect === 'request.intent_type') ?? null;
+
+    return {
+      round,
+      annotations: annotationsForRound,
+      annotationCount: annotationsForRound.length,
+      taskTypeAnnotation,
+      intentTypeAnnotation,
+      taskTypeLabel: taskTypeAnnotation ? annotationValueLabel(taskTypeAnnotation.value) : null,
+      intentTypeLabels: intentTypeAnnotation ? annotationValueLabels(intentTypeAnnotation.value) : [],
+    };
+  });
+}
+
+export function findCurrentRoundGroup(
+  roundGroups: RoundAnnotationGroup[],
+  selectedStepId: string,
+): RoundAnnotationGroup | null {
+  return roundGroups.find((group) => group.round.stepIds.includes(selectedStepId)) ?? null;
 }

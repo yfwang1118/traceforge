@@ -21,6 +21,7 @@
 - 支持 target：
   - `step`
   - `span`
+  - `round`
   - `trajectory`
 - 字段覆盖：`target / aspect / value / rationale / confidence / evidence / provenance / status`。
 
@@ -32,6 +33,7 @@
 - 当前默认展示路径使用 `sample-data/trajectory.cc.example.json`，并按原始 event 顺序逐条映射为统一 `Trajectory` 抽象中的 step。
 - 与该样例配套的 mock annotations 存放在 `sample-data/trajectory.cc.annotations.json`，用于驱动 step / span / trajectory 三层演示。
 - 该 mock annotation 样例中的 span 需要连续覆盖完整对话粒度；若存在未覆盖区间，展示层需自动补齐为“未标注对话段”以避免时间线断层。
+- 对话型样例中，span 的分段默认必须完整落在各自 round 内；展示层应优先表达 `round -> spans -> steps` 的层级，而不是把 span 视为全局平铺切片。
 - `sample-data/trajectory.sample.json` 继续保留为结构化旧样例，用于对照和回归，不再作为默认 loader 的主路径。
 
 ## 2.4 少量 aspect 先行
@@ -43,6 +45,8 @@
 - 事实一致性/幻觉风险（factuality risk）
 - 进度推进情况（progression）
 - 最终完成度（outcome quality）
+- 用户问题任务类别（request task type）
+- 用户问题意图类别（request intent type）
 
 ## 3. 明确不做（MVP 非目标）
 
@@ -75,6 +79,7 @@
 
 1. 能导入并渲染 sample trajectory JSON；
 2. 能在 step/span/trajectory 上完成标注 CRUD；
+2.1. 对话型样例中，能在 `round` 上查看与创建标注；
 3. 每条标注可设置 aspect、value、rationale、confidence、evidence、status；
 4. 标注数据可导出为结构化 JSON；
 5. 研究员可基于该结果完成一次失败案例复盘。
@@ -83,7 +88,7 @@
 
 - M1：数据模型与导入校验完成
 - M2：trajectory detail + step timeline 可用
-- M3：annotation panel 可用（step/span/trajectory）
+- M3：annotation panel 可用（step/span/round/trajectory）
 - M4：evidence linking 与导出闭环完成
 
 ## 7. 关于大规模数据与数据库策略
@@ -120,8 +125,12 @@
 
 2. `sample-data/trajectory.cc.annotations.json`
    - 与上述事件流样例配套的 mock annotations；
-   - 提供 trajectory / span / step 三层标注演示；
-   - 用于验证阶段分段、关键 event judgment 与整体结论展示。
+   - 提供 trajectory / round / span / step 四层标注演示；
+   - 每个 round 都需要至少对应 1 组 span，且这些 spans 只服务该 round；
+   - round 标注至少覆盖：
+     - 用户问题主任务类别（如 `bug_fix` / `feature` / `config_setup`）；
+     - 用户意图类别（如 `new_requirement` / `follow_up` / `correction` / `dissatisfaction`）；
+   - 用于验证“先看用户问题，再看阶段推进，再看局部 step 证据”的阅读路径。
 
 3. `sample-data/trajectory.sample.json`
    - 旧的结构化样例；

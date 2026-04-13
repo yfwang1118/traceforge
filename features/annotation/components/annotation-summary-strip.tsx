@@ -1,19 +1,29 @@
-import { annotationValueLabel, getSpanTone, type TimelineSpanGroup } from '@/lib/annotation-presentation';
+import {
+  annotationValueLabel,
+  getSpanTone,
+  type RoundAnnotationGroup,
+  type TimelineSpanGroup,
+} from '@/lib/annotation-presentation';
 import type { Annotation, Step } from '@/types';
 
 type AnnotationSummaryStripProps = {
   selectedStep: Step;
   trajectoryAnnotations: Annotation[];
+  currentRoundGroup: RoundAnnotationGroup | null;
+  roundGroups: RoundAnnotationGroup[];
   currentSpanGroup: TimelineSpanGroup | null;
   spanGroups: TimelineSpanGroup[];
   totalStepAnnotationCount: number;
   currentStepAnnotationCount: number;
+  roundAnnotationCount: number;
   spanAnnotationCount: number;
   trajectoryAnnotationCount: number;
   conversationRoundCount: number;
   conversationJumpCount: number;
+  onFocusRound: (roundId: string, preferredStepId?: string) => void;
   onFocusSpan: (spanId: string, preferredStepId?: string) => void;
   onOpenStepAnnotations: () => void;
+  onOpenRoundAnnotations: () => void;
   onOpenSpanAnnotations: () => void;
   onOpenTrajectoryAnnotations: () => void;
 };
@@ -56,6 +66,10 @@ function formatStepRange(start: number, end: number): string {
   return `${formatStepIndex(start)}-${formatStepIndex(end)}`;
 }
 
+function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ');
+}
+
 function ActionButton({
   active,
   onClick,
@@ -89,55 +103,86 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function LabelRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
 export function AnnotationSummaryStrip({
   selectedStep,
   trajectoryAnnotations,
+  currentRoundGroup,
+  roundGroups,
   currentSpanGroup,
   spanGroups,
   totalStepAnnotationCount,
   currentStepAnnotationCount,
+  roundAnnotationCount,
   spanAnnotationCount,
   trajectoryAnnotationCount,
   conversationRoundCount,
   conversationJumpCount,
+  onFocusRound,
   onFocusSpan,
   onOpenStepAnnotations,
+  onOpenRoundAnnotations,
   onOpenSpanAnnotations,
   onOpenTrajectoryAnnotations,
 }: AnnotationSummaryStripProps) {
   const primaryTrajectoryAnnotation = trajectoryAnnotations[0];
   const currentSpanTone = currentSpanGroup ? getSpanTone(currentSpanGroup.label) : null;
+  const currentRoundTaskAnnotation = currentRoundGroup?.taskTypeAnnotation ?? null;
+  const currentRoundIntentAnnotation = currentRoundGroup?.intentTypeAnnotation ?? null;
+  const roundPhaseSets = roundGroups.map((group) => ({
+    ...group,
+    spans: spanGroups.filter(
+      (spanGroup) =>
+        group.round.stepIds.includes(spanGroup.startStepId) && group.round.stepIds.includes(spanGroup.endStepId),
+    ),
+  }));
 
   return (
     <section className="mb-5 overflow-hidden rounded-[28px] border border-white/80 bg-white/80 p-5 shadow-[0_30px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Annotation Summary</p>
-          <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">先看整体判断，再钻进单步证据</h3>
+          <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">先看用户问题，再钻进阶段与单步证据</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            当前聚焦 step {formatStepIndex(selectedStep.index)}，先看对话轮次与轮次跳转，再用 trajectory / span / step 三层判断建立心智模型。
+            当前聚焦 step {formatStepIndex(selectedStep.index)}。先用 trajectory / round / span / step 四层判断建立心智模型，再下钻到具体工具动作。
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <ActionButton active onClick={onOpenStepAnnotations}>
-            当前 Step ({currentStepAnnotationCount})
+          <ActionButton active onClick={onOpenRoundAnnotations}>
+            当前问题 ({currentRoundGroup?.annotationCount ?? 0})
           </ActionButton>
           <ActionButton onClick={onOpenSpanAnnotations}>当前阶段 ({currentSpanGroup ? 1 : 0})</ActionButton>
+          <ActionButton onClick={onOpenStepAnnotations}>当前 Step ({currentStepAnnotationCount})</ActionButton>
           <ActionButton onClick={onOpenTrajectoryAnnotations}>整体判断 ({trajectoryAnnotationCount})</ActionButton>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <div className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <MetricCard label="Trajectory" value={trajectoryAnnotationCount} />
-            <MetricCard label="Span" value={spanAnnotationCount} />
-            <MetricCard label="Step" value={totalStepAnnotationCount} />
-            <MetricCard label="Rounds" value={conversationRoundCount} />
-            <MetricCard label="Jumps" value={conversationJumpCount} />
-          </div>
+      <div className="mt-5 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        <MetricCard label="Trajectory" value={trajectoryAnnotationCount} />
+        <MetricCard label="Round" value={roundAnnotationCount} />
+        <MetricCard label="Span" value={spanAnnotationCount} />
+        <MetricCard label="Step" value={totalStepAnnotationCount} />
+        <MetricCard label="Rounds" value={conversationRoundCount} />
+        <MetricCard label="Jumps" value={conversationJumpCount} />
+      </div>
 
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="space-y-4">
           <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.92))] p-4 shadow-[0_24px_50px_-40px_rgba(15,23,42,0.38)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Trajectory Verdict</p>
 
@@ -164,6 +209,79 @@ export function AnnotationSummaryStrip({
             ) : (
               <p className="mt-3 rounded-[22px] border border-dashed border-slate-200 bg-white/75 p-4 text-sm text-slate-500">
                 当前暂无 trajectory 级标注。
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.92))] p-4 shadow-[0_24px_50px_-40px_rgba(15,23,42,0.38)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Current Question</p>
+
+            {currentRoundGroup ? (
+              <div className="mt-3 rounded-[22px] border border-slate-200/80 bg-white/90 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    {currentRoundGroup.round.label}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                    steps {formatStepRange(currentRoundGroup.round.startStepIndex, currentRoundGroup.round.endStepIndex)}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                    annotations {currentRoundGroup.annotationCount}
+                  </span>
+                  {currentRoundTaskAnnotation ? (
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${sourceTone(currentRoundTaskAnnotation.provenance.source)}`}>
+                      {currentRoundTaskAnnotation.provenance.source}
+                    </span>
+                  ) : null}
+                  {currentRoundTaskAnnotation ? (
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${statusTone(currentRoundTaskAnnotation.status)}`}>
+                      {currentRoundTaskAnnotation.status}
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-900">{currentRoundGroup.round.promptPreview}</p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <LabelRow label="Task Type">
+                    {currentRoundGroup.taskTypeLabel ? (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                        {formatEnumLabel(currentRoundGroup.taskTypeLabel)}
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
+                        待标注
+                      </span>
+                    )}
+                  </LabelRow>
+
+                  <LabelRow label="Intent Type">
+                    {currentRoundGroup.intentTypeLabels.length > 0 ? (
+                      currentRoundGroup.intentTypeLabels.map((label) => (
+                        <span
+                          key={label}
+                          className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700"
+                        >
+                          {formatEnumLabel(label)}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="rounded-full border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
+                        待标注
+                      </span>
+                    )}
+                  </LabelRow>
+                </div>
+
+                {currentRoundTaskAnnotation?.rationale ? (
+                  <p className="mt-4 text-sm leading-6 text-slate-600">{currentRoundTaskAnnotation.rationale}</p>
+                ) : currentRoundIntentAnnotation?.rationale ? (
+                  <p className="mt-4 text-sm leading-6 text-slate-600">{currentRoundIntentAnnotation.rationale}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-[22px] border border-dashed border-slate-200 bg-white/75 p-4 text-sm text-slate-500">
+                当前 step 未命中任何 round 上下文。
               </p>
             )}
           </div>
@@ -203,42 +321,112 @@ export function AnnotationSummaryStrip({
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.92))] p-4 shadow-[0_24px_50px_-40px_rgba(15,23,42,0.38)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Phases</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">点击阶段 chip 直接聚焦到对应 span，同时保持当前阅读上下文。</p>
+        <div className="space-y-4">
+          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.92))] p-4 shadow-[0_24px_50px_-40px_rgba(15,23,42,0.38)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Round Phase Map</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">每个 round 下直接展开这一轮对应的 phase 套件，先看问题，再看这轮内部怎么推进。</p>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {spanGroups.length === 0 ? (
-              <p className="rounded-[22px] border border-dashed border-slate-200 bg-white/75 p-4 text-sm text-slate-500">
-                当前暂无 span 标注。
-              </p>
-            ) : (
-              spanGroups.map((group) => {
-                const tone = getSpanTone(group.label);
-
-                return (
-                  <button
-                    key={group.id}
-                    type="button"
-                    onClick={() => onFocusSpan(group.id, group.startStepId)}
-                    title={group.label}
-                    className={`rounded-[22px] border px-4 py-3 text-left text-xs transition ${
-                      group.containsSelectedStep
-                        ? `${tone.chip} shadow-[0_20px_40px_-28px_rgba(15,23,42,0.38)]`
-                        : `${tone.card} hover:shadow-[0_18px_36px_-30px_rgba(15,23,42,0.34)]`
+            <div className="mt-4 space-y-3">
+              {roundPhaseSets.length === 0 ? (
+                <p className="rounded-[22px] border border-dashed border-slate-200 bg-white/75 p-4 text-sm text-slate-500">
+                  当前暂无 round 结构。
+                </p>
+              ) : (
+                roundPhaseSets.map((group) => (
+                  <div
+                    key={group.round.id}
+                    className={`rounded-[22px] border p-4 transition ${
+                      group.round.containsSelectedStep
+                        ? 'border-slate-900/10 bg-white shadow-[0_24px_44px_-34px_rgba(15,23,42,0.4)] ring-1 ring-slate-900/5'
+                        : 'border-white/90 bg-white/82 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.34)]'
                     }`}
                   >
-                    <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${tone.text}`}>steps {formatStepRange(group.startStepIndex, group.endStepIndex)}</p>
-                    <p className={`mt-2 text-sm font-semibold ${tone.text}`}>{group.label}</p>
-                    {group.isAutoGenerated ? <p className={`mt-1 text-[11px] ${tone.text}`}>auto coverage</p> : null}
-                  </button>
-                );
-              })
-            )}
+                    <button
+                      type="button"
+                      onClick={() => onFocusRound(group.round.id, group.round.leadStepId)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                          {group.round.label}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                          steps {formatStepRange(group.round.startStepIndex, group.round.endStepIndex)}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                          {group.annotationCount} ann
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                          {group.spans.length} phases
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold leading-6 text-slate-900">{group.round.promptPreview}</p>
+                    </button>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {group.taskTypeLabel ? (
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                          {formatEnumLabel(group.taskTypeLabel)}
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
+                          task 待标注
+                        </span>
+                      )}
+                      {group.intentTypeLabels.length > 0
+                        ? group.intentTypeLabels.map((label) => (
+                            <span
+                              key={`${group.round.id}-${label}`}
+                              className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700"
+                            >
+                              {formatEnumLabel(label)}
+                            </span>
+                          ))
+                        : (
+                            <span className="rounded-full border border-dashed border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
+                              intent 待标注
+                            </span>
+                          )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {group.spans.length === 0 ? (
+                        <span className="rounded-full border border-dashed border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500">
+                          当前 round 暂无 phase
+                        </span>
+                      ) : (
+                        group.spans.map((spanGroup) => {
+                          const tone = getSpanTone(spanGroup.label);
+
+                          return (
+                            <button
+                              key={spanGroup.id}
+                              type="button"
+                              onClick={() => onFocusSpan(spanGroup.id, spanGroup.startStepId)}
+                              title={spanGroup.label}
+                              className={`rounded-[20px] border px-3 py-2 text-left text-xs transition ${
+                                spanGroup.containsSelectedStep
+                                  ? `${tone.chip} shadow-[0_18px_36px_-28px_rgba(15,23,42,0.35)]`
+                                  : `${tone.card} hover:shadow-[0_16px_32px_-28px_rgba(15,23,42,0.28)]`
+                              }`}
+                            >
+                              <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${tone.text}`}>
+                                steps {formatStepRange(spanGroup.startStepIndex, spanGroup.endStepIndex)}
+                              </p>
+                              <p className={`mt-1.5 text-sm font-semibold ${tone.text}`}>{spanGroup.label}</p>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

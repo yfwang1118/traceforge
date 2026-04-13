@@ -7,8 +7,11 @@ import type { AnnotationPanelScope } from '@/features/annotation/components/anno
 import { StepDetail } from '@/features/trajectory/components/step-detail';
 import { StepTimeline, type TimelineScrollRequest } from '@/features/trajectory/components/step-timeline';
 import {
+  buildRoundAnnotationGroups,
   buildTimelineSpanGroups,
+  findCurrentRoundGroup,
   findCurrentSpanGroup,
+  getAnnotationCountByTargetType,
   getAnnotationCountByStepId,
 } from '@/lib/annotation-presentation';
 import { buildConversationRounds, countConversationJumps } from '@/lib/trajectory-presentation';
@@ -40,10 +43,19 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
     () => buildConversationRounds(trajectory.steps, selectedStep?.id ?? ''),
     [selectedStep?.id, trajectory.steps],
   );
+  const roundGroups = useMemo(
+    () => buildRoundAnnotationGroups(conversationRounds, trajectory.annotations),
+    [conversationRounds, trajectory.annotations],
+  );
+  const currentRoundGroup = useMemo(
+    () => findCurrentRoundGroup(roundGroups, selectedStepId),
+    [roundGroups, selectedStepId],
+  );
   const conversationJumpCount = useMemo(() => countConversationJumps(conversationRounds), [conversationRounds]);
   const selectedStepAnnotationCount = selectedStep ? (annotationCountByStepId[selectedStep.id] ?? 0) : 0;
-  const totalStepAnnotationCount = trajectory.annotations.filter((annotation) => annotation.target.type === 'step').length;
-  const spanAnnotationCount = trajectory.annotations.filter((annotation) => annotation.target.type === 'span').length;
+  const totalStepAnnotationCount = getAnnotationCountByTargetType(trajectory.annotations, 'step');
+  const roundAnnotationCount = getAnnotationCountByTargetType(trajectory.annotations, 'round');
+  const spanAnnotationCount = getAnnotationCountByTargetType(trajectory.annotations, 'span');
   const trajectoryAnnotations = trajectory.annotations.filter((annotation) => annotation.target.type === 'trajectory');
 
   if (!selectedStep) {
@@ -88,21 +100,44 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
     });
   };
 
+  const focusRound = (roundId: string, preferredStepId?: string) => {
+    const group = roundGroups.find((item) => item.round.id === roundId);
+
+    if (!group) {
+      return;
+    }
+
+    const targetStepId =
+      preferredStepId && group.round.stepIds.includes(preferredStepId) ? preferredStepId : group.round.leadStepId;
+
+    setSelectedStepId(targetStepId);
+    setCollapsedRoundIds((current) => current.filter((id) => id !== roundId));
+    setTimelineScrollRequest({
+      targetId: targetStepId,
+      nonce: Date.now(),
+    });
+  };
+
   return (
     <>
       <AnnotationSummaryStrip
         selectedStep={selectedStep}
         trajectoryAnnotations={trajectoryAnnotations}
+        currentRoundGroup={currentRoundGroup}
+        roundGroups={roundGroups}
         currentSpanGroup={currentSpanGroup}
         spanGroups={spanGroups}
         totalStepAnnotationCount={totalStepAnnotationCount}
         currentStepAnnotationCount={selectedStepAnnotationCount}
+        roundAnnotationCount={roundAnnotationCount}
         spanAnnotationCount={spanAnnotationCount}
         trajectoryAnnotationCount={trajectoryAnnotations.length}
         conversationRoundCount={conversationRounds.length}
         conversationJumpCount={conversationJumpCount}
+        onFocusRound={focusRound}
         onFocusSpan={focusSpan}
         onOpenStepAnnotations={() => openAnnotationPanel('step')}
+        onOpenRoundAnnotations={() => openAnnotationPanel('round')}
         onOpenSpanAnnotations={() => openAnnotationPanel('span')}
         onOpenTrajectoryAnnotations={() => openAnnotationPanel('trajectory')}
       />
@@ -116,6 +151,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
             annotationCountByStepId={annotationCountByStepId}
             spanGroups={spanGroups}
             conversationRounds={conversationRounds}
+            roundGroups={roundGroups}
             collapsedSpanIds={collapsedSpanIds}
             collapsedRoundIds={collapsedRoundIds}
             onToggleSpanCollapse={toggleSpanCollapse}
@@ -128,6 +164,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
           <StepDetail
             trajectory={trajectory}
             selectedStep={selectedStep}
+            currentRoundGroup={currentRoundGroup}
             onOpenAnnotation={() => openAnnotationPanel('step')}
           />
         </div>
@@ -137,6 +174,7 @@ export function TrajectoryReviewWorkspace({ trajectory }: TrajectoryReviewWorksp
         trajectory={trajectory}
         annotations={trajectory.annotations}
         selectedStep={selectedStep}
+        currentRoundGroup={currentRoundGroup}
         currentSpanGroup={currentSpanGroup}
         isOpen={isAnnotationPanelOpen}
         scope={annotationScope}

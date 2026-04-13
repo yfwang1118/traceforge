@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { getSpanTone, type TimelineSpanGroup } from '@/lib/annotation-presentation';
+import { getSpanTone, type RoundAnnotationGroup, type TimelineSpanGroup } from '@/lib/annotation-presentation';
 import {
   buildConversationRounds,
   getStepDisplayKind,
@@ -21,6 +21,7 @@ type StepTimelineProps = {
   annotationCountByStepId?: Record<string, number>;
   spanGroups?: TimelineSpanGroup[];
   conversationRounds?: ConversationRound[];
+  roundGroups?: RoundAnnotationGroup[];
   collapsedSpanIds?: string[];
   collapsedRoundIds?: string[];
   onToggleSpanCollapse?: (spanId: string) => void;
@@ -87,6 +88,10 @@ function formatStepIndex(index: number): string {
 
 function formatStepRange(start: number, end: number): string {
   return `${formatStepIndex(start)}-${formatStepIndex(end)}`;
+}
+
+function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ');
 }
 
 function MetaChip({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -407,6 +412,7 @@ function clipSpanGroupsForRound(
 
 function ConversationRoundCard({
   round,
+  roundGroup,
   selectedStepId,
   onSelectStep,
   roundSpanCount,
@@ -416,6 +422,7 @@ function ConversationRoundCard({
   itemRef,
 }: {
   round: ConversationRound;
+  roundGroup: RoundAnnotationGroup | null;
   selectedStepId: string;
   onSelectStep: (stepId: string) => void;
   roundSpanCount: number;
@@ -426,6 +433,8 @@ function ConversationRoundCard({
 }) {
   const isSelected = round.containsSelectedStep;
   const leadSelected = selectedStepId === round.leadStepId;
+  const taskTypeLabel = roundGroup?.taskTypeLabel ?? null;
+  const intentTypeLabels = roundGroup?.intentTypeLabels ?? [];
 
   return (
     <li ref={itemRef} className="space-y-3">
@@ -455,8 +464,24 @@ function ConversationRoundCard({
                   </span>
                   <MetaChip>{round.label}</MetaChip>
                   <MetaChip>steps {formatStepRange(round.startStepIndex, round.endStepIndex)}</MetaChip>
+                  {roundGroup ? <MetaChip>annotations {roundGroup.annotationCount}</MetaChip> : null}
                 </div>
                 <p className="mt-3 text-[14px] font-medium leading-6 text-slate-900">{round.promptPreview}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {taskTypeLabel ? (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                      {formatEnumLabel(taskTypeLabel)}
+                    </span>
+                  ) : null}
+                  {intentTypeLabels.map((label) => (
+                    <span
+                      key={`${round.id}-${label}`}
+                      className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700"
+                    >
+                      {formatEnumLabel(label)}
+                    </span>
+                  ))}
+                </div>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   <MetaChip>{round.actionStepCount} actions</MetaChip>
                   {roundSpanCount > 0 ? <MetaChip>{roundSpanCount} phases</MetaChip> : null}
@@ -492,6 +517,7 @@ export function StepTimeline({
   annotationCountByStepId = {},
   spanGroups = [],
   conversationRounds,
+  roundGroups = [],
   collapsedSpanIds = [],
   collapsedRoundIds = [],
   onToggleSpanCollapse,
@@ -506,6 +532,7 @@ export function StepTimeline({
   const itemRefMap = useRef<Record<string, HTMLLIElement | null>>({});
   const annotatedStepCount = Object.values(annotationCountByStepId).filter((count) => count > 0).length;
   const roundJumpCount = Math.max(rounds.length - 1, 0);
+  const roundAnnotationCount = roundGroups.reduce((total, group) => total + group.annotationCount, 0);
 
   const setItemRef = (itemId: string) => (node: HTMLLIElement | null) => {
     itemRefMap.current[itemId] = node;
@@ -552,7 +579,7 @@ export function StepTimeline({
           <p className="mt-1 text-sm leading-6 text-slate-600">先按对话轮次理解用户意图，再进入阶段与局部动作，默认省略 assistant/tool 角色噪声。</p>
         </div>
 
-        <div className="grid min-w-[220px] flex-1 gap-2 sm:max-w-[420px] sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-[220px] flex-1 gap-2 sm:max-w-[540px] sm:grid-cols-2 xl:grid-cols-3">
           <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Steps</p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{steps.length}</p>
@@ -570,6 +597,10 @@ export function StepTimeline({
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{roundJumpCount}</p>
           </div>
           <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Round Tags</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{roundAnnotationCount}</p>
+          </div>
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Annotated</p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{annotatedStepCount}</p>
           </div>
@@ -580,6 +611,7 @@ export function StepTimeline({
         <ul ref={listRef} className="max-h-[72vh] space-y-3 overflow-y-auto pr-1">
           {rounds.map((round) => {
             const roundSteps = steps.filter((step) => round.stepIds.includes(step.id));
+            const roundGroup = roundGroups.find((group) => group.round.id === round.id) ?? null;
             const roundSpanGroups = clipSpanGroupsForRound(
               round,
               roundSteps,
@@ -606,6 +638,7 @@ export function StepTimeline({
               <ConversationRoundCard
                 key={round.id}
                 round={round}
+                roundGroup={roundGroup}
                 selectedStepId={selectedStepId}
                 onSelectStep={onSelectStep}
                 roundSpanCount={roundSpanGroups.length}

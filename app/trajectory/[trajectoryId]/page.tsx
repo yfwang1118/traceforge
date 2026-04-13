@@ -27,7 +27,7 @@ export default async function TrajectoryDetailPage({ params }: TrajectoryDetailP
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Trajectory Detail</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{trajectory.task}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              当前以研究可读优先的 step 视图回放轨迹：普通消息按 event 展示，工具调用与返回结果绑定展示。
+              当前以研究可读优先的 round / phase / step 视图回放轨迹：先看用户问题，再看阶段推进，最后下钻到工具调用与返回结果。
             </p>
           </div>
 

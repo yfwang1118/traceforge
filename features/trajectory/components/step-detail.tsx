@@ -1,9 +1,11 @@
+import type { RoundAnnotationGroup } from '@/lib/annotation-presentation';
 import type { ReactNode } from 'react';
 import type { Step, ToolInteraction, ToolResult, Trajectory } from '@/types';
 
 type StepDetailProps = {
   trajectory: Trajectory;
   selectedStep: Step;
+  currentRoundGroup: RoundAnnotationGroup | null;
   onOpenAnnotation?: () => void;
 };
 
@@ -77,6 +79,14 @@ function formatTime(timestamp?: string): string {
 
 function formatStepIndex(index: number): string {
   return index.toString().padStart(2, '0');
+}
+
+function formatStepRange(start: number, end: number): string {
+  return `${formatStepIndex(start)}-${formatStepIndex(end)}`;
+}
+
+function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ');
 }
 
 function toPrettyJson(value: unknown): string {
@@ -511,7 +521,7 @@ function ToolInteractionCard({ interaction }: { interaction: ToolInteraction }) 
   );
 }
 
-export function StepDetail({ trajectory, selectedStep, onOpenAnnotation }: StepDetailProps) {
+export function StepDetail({ trajectory, selectedStep, currentRoundGroup, onOpenAnnotation }: StepDetailProps) {
   const inputText = selectedStep.input ?? 'N/A';
   const outputText = selectedStep.output ?? 'N/A';
   const toolCalls = selectedStep.toolCalls ?? [];
@@ -523,6 +533,8 @@ export function StepDetail({ trajectory, selectedStep, onOpenAnnotation }: StepD
   const hasRawOutput = Boolean(outputText && outputText !== 'N/A' && outputText !== '(no output)');
   const statusTone = stepStatusClassMap[selectedStep.status];
   const roleTone = roleClassMap[selectedStep.role ?? 'unknown'];
+  const currentRoundTaskLabel = currentRoundGroup?.taskTypeLabel ?? null;
+  const currentRoundIntentLabels = currentRoundGroup?.intentTypeLabels ?? [];
   const metadataItems = [
     { label: 'stepId', value: selectedStep.id },
     { label: 'parentUuid', value: selectedStep.metadata?.parentUuid ?? 'N/A' },
@@ -551,6 +563,35 @@ export function StepDetail({ trajectory, selectedStep, onOpenAnnotation }: StepD
           </button>
         ) : null}
       </div>
+
+      {currentRoundGroup ? (
+        <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.9))] p-4 shadow-[0_24px_50px_-40px_rgba(15,23,42,0.38)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Current Round</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{currentRoundGroup.round.promptPreview}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {currentRoundGroup.round.label} · steps{' '}
+                {formatStepRange(currentRoundGroup.round.startStepIndex, currentRoundGroup.round.endStepIndex)} ·{' '}
+                {currentRoundGroup.round.actionStepCount} actions
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {currentRoundTaskLabel ? (
+                <SurfaceChip className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                  task {formatEnumLabel(currentRoundTaskLabel)}
+                </SurfaceChip>
+              ) : null}
+              {currentRoundIntentLabels.map((label) => (
+                <SurfaceChip key={label} className="border-amber-200 bg-amber-50 text-amber-700">
+                  intent {formatEnumLabel(label)}
+                </SurfaceChip>
+              ))}
+              <SurfaceChip>round ann {currentRoundGroup.annotationCount}</SurfaceChip>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-5 rounded-[28px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.86))] p-4 shadow-[0_28px_55px_-40px_rgba(15,23,42,0.42)]">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">

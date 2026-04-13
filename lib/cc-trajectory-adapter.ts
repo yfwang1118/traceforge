@@ -664,6 +664,13 @@ function remapTargetRef(target: TargetRef, eventToStepId: Record<string, string>
         startStepId: remapStepRef(target.startStepId, eventToStepId),
         endStepId: remapStepRef(target.endStepId, eventToStepId),
       };
+    case 'round':
+      return {
+        ...target,
+        leadStepId: remapStepRef(target.leadStepId, eventToStepId),
+        startStepId: remapStepRef(target.startStepId, eventToStepId),
+        endStepId: remapStepRef(target.endStepId, eventToStepId),
+      };
     case 'transition':
       return {
         ...target,

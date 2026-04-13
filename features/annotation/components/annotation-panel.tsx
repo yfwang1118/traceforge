@@ -1,10 +1,11 @@
-import { annotationValueLabel, type TimelineSpanGroup } from '@/lib/annotation-presentation';
+import { annotationValueLabel, type RoundAnnotationGroup, type TimelineSpanGroup } from '@/lib/annotation-presentation';
 import type { Annotation, Step, Trajectory } from '@/types';
 
 type AnnotationPanelProps = {
   trajectory: Trajectory;
   annotations: Annotation[];
   selectedStep: Step;
+  currentRoundGroup: RoundAnnotationGroup | null;
   currentSpanGroup: TimelineSpanGroup | null;
   isOpen: boolean;
   scope: AnnotationPanelScope;
@@ -12,7 +13,7 @@ type AnnotationPanelProps = {
   onClose: () => void;
 };
 
-export type AnnotationPanelScope = 'step' | 'span' | 'trajectory' | 'all';
+export type AnnotationPanelScope = 'step' | 'round' | 'span' | 'trajectory' | 'all';
 
 function targetLabel(annotation: Annotation): string {
   switch (annotation.target.type) {
@@ -20,6 +21,8 @@ function targetLabel(annotation: Annotation): string {
       return `step · ${annotation.target.stepId}`;
     case 'span':
       return `span · ${annotation.target.startStepId} - ${annotation.target.endStepId}`;
+    case 'round':
+      return `round · ${annotation.target.roundId}`;
     case 'trajectory':
       return `trajectory · ${annotation.target.trajectoryId}`;
     default:
@@ -39,6 +42,7 @@ export function AnnotationPanel({
   trajectory,
   annotations,
   selectedStep,
+  currentRoundGroup,
   currentSpanGroup,
   isOpen,
   scope,
@@ -48,6 +52,9 @@ export function AnnotationPanel({
   const stepAnnotations = annotations.filter(
     (annotation) => annotation.target.type === 'step' && annotation.target.stepId === selectedStep.id,
   );
+  const roundAnnotations = currentRoundGroup
+    ? annotations.filter((annotation) => annotation.target.type === 'round' && annotation.target.roundId === currentRoundGroup.round.id)
+    : [];
   const spanAnnotations = currentSpanGroup
     ? annotations.filter(
         (annotation) =>
@@ -63,6 +70,8 @@ export function AnnotationPanel({
   const visibleAnnotations =
     scope === 'step'
       ? stepAnnotations
+      : scope === 'round'
+        ? roundAnnotations
       : scope === 'span'
         ? spanAnnotations
         : scope === 'trajectory'
@@ -71,6 +80,7 @@ export function AnnotationPanel({
 
   const scopeOptions: { key: AnnotationPanelScope; label: string }[] = [
     { key: 'step', label: `Current Step (${stepAnnotations.length})` },
+    { key: 'round', label: `Current Round (${roundAnnotations.length})` },
     { key: 'span', label: `Current Span (${spanAnnotations.length})` },
     { key: 'trajectory', label: `Trajectory (${trajectoryAnnotations.length})` },
     { key: 'all', label: `All (${annotations.length})` },
@@ -110,6 +120,9 @@ export function AnnotationPanel({
           <div className="mt-3 space-y-2 text-sm text-slate-600">
             <p>Trajectory: {trajectory.id}</p>
             <p>Current step: {formatStepIndex(selectedStep.index)} · {selectedStep.id}</p>
+            {currentRoundGroup ? (
+              <p>Current round: {currentRoundGroup.round.label} · {formatStepRange(currentRoundGroup.round.startStepIndex, currentRoundGroup.round.endStepIndex)}</p>
+            ) : null}
             {currentSpanGroup ? (
               <p>Current span: {formatStepRange(currentSpanGroup.startStepIndex, currentSpanGroup.endStepIndex)} · {currentSpanGroup.label}</p>
             ) : null}
@@ -170,7 +183,7 @@ export function AnnotationPanel({
           )}
         </div>
 
-        <p className="mt-4 text-[11px] text-slate-500">Target scope: step / span / trajectory / all</p>
+        <p className="mt-4 text-[11px] text-slate-500">Target scope: step / round / span / trajectory / all</p>
       </aside>
     </div>
   );
